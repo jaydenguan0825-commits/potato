@@ -1,0 +1,186 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Florr.io</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            background-color: #0a0e27;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        #ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, rgba(20, 30, 60, 0.9), rgba(30, 50, 100, 0.8));
+            color: #00ff88;
+            padding: 20px;
+            border: 2px solid #00ff88;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border-radius: 8px;
+            min-width: 220px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            z-index: 100;
+        }
+
+        .ui-row {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .ui-label {
+            color: #00ff88;
+        }
+
+        .ui-value {
+            color: #ffff00;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+        }
+
+        #goldDisplay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, rgba(20, 30, 60, 0.9), rgba(30, 50, 100, 0.8));
+            color: #f1c40f;
+            padding: 10px 15px;
+            border: 2px solid #f1c40f;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(241, 196, 15, 0.3);
+            z-index: 100;
+        }
+
+        #abilityDisplay {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, rgba(20, 30, 60, 0.9), rgba(30, 50, 100, 0.8));
+            color: #00ff88;
+            padding: 15px;
+            border: 2px solid #00ff88;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            z-index: 100;
+        }
+
+        .ability {
+            margin: 7px 0;
+            padding: 6px 10px;
+            background-color: rgba(0, 255, 136, 0.05);
+            border-left: 3px solid #ff6b9d;
+            transition: all 0.2s ease;
+        }
+
+        .ability.ready {
+            background-color: rgba(0, 255, 136, 0.15);
+            border-left-color: #00ff88;
+            color: #00ff88;
+        }
+
+        .ability.cooldown {
+            color: #ff6b6b;
+            border-left-color: #ff6b6b;
+        }
+
+        #statsDisplay {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, rgba(20, 30, 60, 0.9), rgba(30, 50, 100, 0.8));
+            color: #00ff88;
+            padding: 15px;
+            border: 2px solid #00ff88;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            border-radius: 8px;
+            text-align: right;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            z-index: 100;
+        }
+
+        .stat-row {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui">
+            <div class="ui-row">
+                <span class="ui-label">HP:</span>
+                <span class="ui-value" id="healthValue">100/100</span>
+            </div>
+            <div class="ui-row">
+                <span class="ui-label">LVL:</span>
+                <span class="ui-value" id="levelValue">1</span>
+            </div>
+            <div class="ui-row">
+                <span class="ui-label">EXP:</span>
+                <span class="ui-value" id="expValue">0/100</span>
+            </div>
+        </div>
+        <div id="goldDisplay">
+            <div>Gold: <span id="goldValue">0</span></div>
+        </div>
+        <div id="abilityDisplay">
+            <div class="ability ready" id="dashAbility">ABILITY [Z]: Ready</div>
+        </div>
+        <div id="statsDisplay">
+            <div class="stat-row">Enemies: <span id="mobCount">0</span></div>
+            <div class="stat-row">Kills: <span id="killCount">0</span></div>
+        </div>
+    </div>
+
+    <!-- Shop Modal -->
+    <div id="shopMenu" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.95); color: white; padding: 30px; border: 4px solid #f1c40f; border-radius: 15px; z-index: 1000; font-family: 'Courier New', monospace; min-width: 400px; max-height: 80vh; overflow-y: auto;">
+        <h2 style="text-align: center; color: #f1c40f; margin-bottom: 20px;">🛒 SHOP [P]</h2>
+        <div id="shopItems">
+            <!-- Shop items will be populated by JavaScript -->
+        </div>
+        <button onclick="window.game.toggleShop()" style="margin-top: 20px; width: 100%; padding: 10px; background: #ff0000; color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 5px;">CLOSE [P]</button>
+    </div>
+
+    <!-- Shop Button -->
+    <div id="shopButton" style="position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #f1c40f, #f39c12); color: black; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; border: 2px solid #e67e22; box-shadow: 0 0 15px rgba(241, 196, 15, 0.5); z-index: 100; font-family: 'Courier New', monospace;" onclick="window.game.toggleShop()">
+        🛒 SHOP [P]
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>
