@@ -9,24 +9,61 @@ export class Renderer {
     }
 
     clear() {
-        this.ctx.fillStyle = '#f2f2f2' // Classic light .io background
+        this.ctx.fillStyle = '#08101f'
         this.ctx.fillRect(0, 0, this.width, this.height)
         this.time++
+    }
+
+    drawInfiniteBackground(camera) {
+        const ctx = this.ctx
+        ctx.save()
+        ctx.globalAlpha = 0.15
+        ctx.fillStyle = '#151f38'
+        ctx.fillRect(0, 0, this.width, this.height)
+
+        const spacing = 80
+        const offsetX = ((-camera.x * 0.2) % spacing + spacing) % spacing
+        const offsetY = ((-camera.y * 0.2) % spacing + spacing) % spacing
+
+        ctx.strokeStyle = '#2f4f8c'
+        ctx.lineWidth = 1
+        for (let x = offsetX; x < this.width + spacing; x += spacing) {
+            ctx.beginPath()
+            ctx.moveTo(x, 0)
+            ctx.lineTo(x, this.height)
+            ctx.stroke()
+        }
+        for (let y = offsetY; y < this.height + spacing; y += spacing) {
+            ctx.beginPath()
+            ctx.moveTo(0, y)
+            ctx.lineTo(this.width, y)
+            ctx.stroke()
+        }
+
+        ctx.fillStyle = '#ffffff'
+        for (let y = offsetY; y < this.height + spacing; y += spacing) {
+            for (let x = offsetX; x < this.width + spacing; x += spacing) {
+                ctx.beginPath()
+                ctx.arc(x + 8, y + 10, 1.5, 0, Math.PI * 2)
+                ctx.fill()
+            }
+        }
+        ctx.restore()
     }
 
     drawBiomeBackground(camera, worldWidth, worldHeight) {
         const ctx = this.ctx
         const tileSize = 50 // Smaller grid for modern look
 
-        for (let y = Math.floor(camera.y / tileSize) * tileSize; y < camera.y + this.height + tileSize; y += tileSize) {
-            for (let x = Math.floor(camera.x / tileSize) * tileSize; x < camera.x + this.width + tileSize; x += tileSize) {
+        for (let y = Math.floor((camera.y - this.height / 2) / tileSize) * tileSize; y < camera.y + this.height + tileSize; y += tileSize) {
+            for (let x = Math.floor((camera.x - this.width / 2) / tileSize) * tileSize; x < camera.x + this.width + tileSize; x += tileSize) {
                 const biome = this.getBiome(x, y, worldWidth, worldHeight)
                 ctx.fillStyle = biome.color
                 ctx.fillRect(x - camera.x, y - camera.y, tileSize, tileSize)
-                
-                ctx.strokeStyle = biome.gridColor || '#d0d0d0'
+
+                ctx.strokeStyle = biome.gridColor || 'rgba(255,255,255,0.05)'
                 ctx.lineWidth = 1
-                ctx.globalAlpha = 0.5
+                ctx.globalAlpha = 0.4
                 ctx.strokeRect(x - camera.x, y - camera.y, tileSize, tileSize)
                 ctx.globalAlpha = 1
             }

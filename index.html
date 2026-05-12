@@ -167,20 +167,49 @@
         </div>
     </div>
 
-    <!-- Shop Modal -->
-    <div id="shopMenu" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.95); color: white; padding: 30px; border: 4px solid #f1c40f; border-radius: 15px; z-index: 1000; font-family: 'Courier New', monospace; min-width: 400px; max-height: 80vh; overflow-y: auto;">
-        <h2 style="text-align: center; color: #f1c40f; margin-bottom: 20px;">🛒 SHOP [P]</h2>
-        <div id="shopItems">
-            <!-- Shop items will be populated by JavaScript -->
+    <!-- Home Screen Overlay -->
+    <div id="homeScreen" style="display: flex; position: fixed; inset: 0; justify-content: center; align-items: center; background: rgba(4, 8, 22, 0.95); z-index: 1000;">
+        <div style="background: linear-gradient(135deg, #101828, #122147); border: 3px solid #00ff88; border-radius: 20px; padding: 30px; width: min(520px, 90%); color: #d4f7d7; font-family: 'Courier New', monospace; box-shadow: 0 0 30px rgba(0, 255, 136, 0.25);">
+            <h1 style="margin-bottom: 16px; font-size: 42px; text-align: center; color: #7cffb2;">Florr.io</h1>
+            <div style="text-align: center; margin-bottom: 20px; padding: 10px; background: rgba(255, 204, 0, 0.1); border: 1px solid #ffcc00; border-radius: 8px;">
+                <span style="color: #ffcc00; font-size: 18px; font-weight: bold;">Gold: <span id="homeGoldValue">0</span></span>
+            </div>
+            <p style="margin-bottom: 24px; color: #b2ffc8; text-align: center; line-height: 1.5;">Battle endless mobs, loot powerful upgrades, and return to home for shop and inventory management.</p>
+            <div style="display: grid; gap: 14px;">
+                <button onclick="window.game.startBattle()" style="padding: 14px; font-size: 16px; cursor: pointer; background: #00ff88; border: none; color: #061c10; border-radius: 12px; font-weight: bold;">START RUN</button>
+                <button onclick="window.game.toggleHomeShop()" style="padding: 14px; font-size: 16px; cursor: pointer; background: #ffcc00; border: none; color: #1d1700; border-radius: 12px; font-weight: bold;">SHOP</button>
+                <button onclick="window.game.openInventory()" style="padding: 14px; font-size: 16px; cursor: pointer; background: #3c86ff; border: none; color: white; border-radius: 12px; font-weight: bold;">INVENTORY</button>
+            </div>
+            <div style="margin-top: 24px; display: grid; gap: 10px; font-size: 14px; color: #b8f7bf;">
+                <div>• Press <strong>P</strong> on home screen to open shop.</div>
+                <div>• Press <strong>E</strong> to open your inventory.</div>
+                <div>• Return to home anytime with the button while playing.</div>
+            </div>
         </div>
-        <button onclick="window.game.toggleShop()" style="margin-top: 20px; width: 100%; padding: 10px; background: #ff0000; color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 5px;">CLOSE [P]</button>
     </div>
 
-    <!-- Shop Button -->
-    <div id="shopButton" style="position: fixed; top: 20px; right: 20px; background: linear-gradient(135deg, #f1c40f, #f39c12); color: black; padding: 12px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; border: 2px solid #e67e22; box-shadow: 0 0 15px rgba(241, 196, 15, 0.5); z-index: 100; font-family: 'Courier New', monospace;" onclick="window.game.toggleShop()">
-        🛒 SHOP [P]
+    <!-- Home Shop Overlay -->
+    <div id="homeShopMenu" style="display: none; position: fixed; inset: 0; background: rgba(2, 10, 24, 0.95); z-index: 1001; padding: 30px; overflow-y: auto;">
+        <div style="max-width: 840px; margin: 0 auto; color: #ddf9d8; font-family: 'Courier New', monospace;">
+            <h2 style="text-align: center; color: #f1c40f; margin-bottom: 20px;">🏪 HOME SHOP</h2>
+            <div id="homeShopItems" style="display: grid; gap: 12px;">
+                <!-- Home shop items will be populated by JavaScript -->
+            </div>
+            <button onclick="window.game.toggleHomeShop()" style="margin-top: 20px; width: 100%; padding: 12px; background: #ff3f3f; color: white; border: none; cursor: pointer; border-radius: 10px; font-weight: bold;">CLOSE SHOP</button>
+        </div>
     </div>
 
-    <script type="module" src="/src/main.js"></script>
+    <!-- Inventory Overlay -->
+    <div id="inventoryMenu" style="display: none; position: fixed; inset: 0; background: rgba(4, 10, 22, 0.96); z-index: 1002; padding: 30px; overflow-y: auto;">
+        <div style="max-width: 840px; margin: 0 auto; color: #d8f3ff; font-family: 'Courier New', monospace;">
+            <h2 style="text-align: center; color: #7cffb2; margin-bottom: 20px;">🎒 INVENTORY</h2>
+            <div id="inventoryContents" style="display: grid; gap: 14px;"></div>
+            <button onclick="window.game.openInventory()" style="margin-top: 20px; width: 100%; padding: 12px; background: #ff3f3f; color: white; border: none; cursor: pointer; border-radius: 10px; font-weight: bold;">CLOSE INVENTORY</button>
+        </div>
+    </div>
+
+    <button id="homeButton" onclick="window.game.confirmReturnHome()" style="display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #ff6b6b, #ff3f5e); color: white; padding: 12px 20px; border-radius: 12px; border: none; box-shadow: 0 0 20px rgba(255, 107, 107, 0.35); cursor: pointer; z-index: 100; font-family: 'Courier New', monospace; font-weight: bold;">BACK TO HOME</button>
+
+    <script type="module" src="./src/main.js"></script>
 </body>
 </html>

@@ -1,6 +1,13 @@
 import { Game } from './game/game.js'
 
-// Initialize game when page loads
-window.addEventListener('DOMContentLoaded', () => {
-    window.game = new Game()
-})
+const initializeGame = () => {
+    if (!window.game) {
+        window.game = new Game()
+    }
+}
+
+if (document.readyState !== 'loading') {
+    initializeGame()
+} else {
+    window.addEventListener('DOMContentLoaded', initializeGame)
+}

@@ -19,8 +19,8 @@ export class Game {
             expToNext: 100,
             direction: 0,
             damage: 10,
-            speed: 100,
-            gold: 0,
+            speed: 120,
+            gold: 100,
             class: null,
             classLevel: 0,
             abilityCooldown: 0,
@@ -45,6 +45,40 @@ export class Game {
         this.kills = 0
         this.lastMobCount = 0
         this.shopOpen = false
+        this.homeShopOpen = false
+        this.inventoryOpen = false
+        this.isHome = true
+
+        this.player.inventory = []
+        this.player.loadout = {
+            healing: null,
+            combat: null,
+            utility: null
+        }
+        this.player.runStartX = 1000
+        this.player.runStartY = 1000
+
+        this.homeShopInventory = [
+            { id: 'health_potion', name: 'Health Potion', cost: 50, description: 'Healing slot: restore 50 HP instantly.', type: 'healing', category: 'healing' },
+            { id: 'regeneration', name: 'Regeneration', cost: 120, description: 'Healing slot: recover HP over time.', type: 'healing', category: 'healing' },
+            { id: 'medkit', name: 'Medkit', cost: 80, description: 'Healing slot: slow regen plus first-aid heal.', type: 'healing', category: 'healing' },
+            { id: 'damage_boost', name: 'Damage Boost', cost: 100, description: 'Combat slot: increases base damage.', type: 'combat', category: 'combat' },
+            { id: 'speed_boost', name: 'Speed Boost', cost: 150, description: 'Combat slot: increases movement speed.', type: 'combat', category: 'combat' },
+            { id: 'boost_potion', name: 'Boost Potion', cost: 200, description: 'Combat slot: strong damage and speed bonus.', type: 'combat', category: 'combat' },
+            { id: 'loot_magnet', name: 'Loot Magnet', cost: 75, description: 'Utility slot: attracts nearby items.', type: 'utility', category: 'utility' },
+            { id: 'loot_boost', name: 'Loot Boost', cost: 120, description: 'Utility slot: increases your loot drop chance.', type: 'utility', category: 'utility' },
+            { id: 'armour_piece', name: 'Armour Piece', cost: 180, description: 'Utility slot: reduces incoming damage.', type: 'utility', category: 'utility' },
+            { id: 'noob', name: 'Class: Noob', cost: 0, description: 'Common starter class with balanced stats.', type: 'class', category: 'class' },
+            { id: 'pro', name: 'Class: Pro', cost: 100, description: 'Common upgrade with better loot rate.', type: 'class', category: 'class' },
+            { id: 'epic', name: 'Class: Epic', cost: 500, description: 'Epic class with higher loot rate and health.', type: 'class', category: 'class' },
+            { id: 'bloodthirsty_killer', name: 'Class: Bloodthirsty Killer', cost: 2000, description: 'Legendary class with attack boost ability.', type: 'class', category: 'class' },
+            { id: 'speedster', name: 'Class: Speedster', cost: 200, description: 'Rare speed-focused class with low HP.', type: 'class', category: 'class' },
+            { id: 'flash', name: 'Class: Flash', cost: 800, description: 'Rare class with even higher speed.', type: 'class', category: 'class' },
+            { id: 'speed_demon', name: 'Class: Speed Demon', cost: 3000, description: 'Mythic class with invisibility ability.', type: 'class', category: 'class' },
+            { id: 'mechanic', name: 'Class: Mechanic', cost: 500, description: 'Epic class with high loot chance.', type: 'class', category: 'class' },
+            { id: 'genius', name: 'Class: Genius', cost: 2000, description: 'Legendary class with robot support.', type: 'class', category: 'class' },
+            { id: 'tech_savvy', name: 'Class: Tech Savvy', cost: 5000, description: 'Godly class with powerful tech abilities.', type: 'class', category: 'class' }
+        ]
 
         // World
         this.worldWidth = 2000
@@ -62,7 +96,7 @@ export class Game {
             noob: {
                 rarity: 'common',
                 cost: 0,
-                stats: { health: 100, speed: 100, damage: 10, lootRate: 0.5 },
+                stats: { health: 100, speed: 120, damage: 10, lootRate: 0.5 },
                 upgrades: ['pro', 'epic', 'bloodthirsty_killer'],
                 ability: null
             },
@@ -90,21 +124,21 @@ export class Game {
             speedster: {
                 rarity: 'rare',
                 cost: 200,
-                stats: { health: 80, speed: 150, damage: 8, lootRate: 0.8 },
+                stats: { health: 80, speed: 180, damage: 8, lootRate: 0.8 },
                 upgrades: ['flash', 'speed_demon'],
                 ability: null
             },
             flash: {
                 rarity: 'rare',
                 cost: 800,
-                stats: { health: 90, speed: 175, damage: 10, lootRate: 1.0 },
+                stats: { health: 90, speed: 210, damage: 10, lootRate: 1.0 },
                 upgrades: ['speed_demon'],
                 ability: null
             },
             speed_demon: {
                 rarity: 'mythic',
                 cost: 3000,
-                stats: { health: 100, speed: 200, damage: 12, lootRate: 1.1 },
+                stats: { health: 100, speed: 240, damage: 12, lootRate: 1.1 },
                 upgrades: [],
                 ability: 'invisibility'
             },
@@ -168,10 +202,14 @@ export class Game {
                 this.useAbility()
             }
             if (e.key === 'e' || e.key === 'E') {
-                this.openClassMenu()
+                this.openInventory()
             }
             if (e.key === 'p' || e.key === 'P') {
-                this.toggleShop()
+                if (this.isHome) {
+                    this.toggleHomeShop()
+                } else {
+                    this.confirmReturnHome()
+                }
             }
         })
 
@@ -185,13 +223,18 @@ export class Game {
             this.mouse.y = e.clientY - rect.top
         })
 
-        document.addEventListener('click', (e) => {
+        document.addEventListener('click', () => {
             this.shoot()
         })
     }
 
     update(deltaTime) {
+        if (this.isHome) {
+            return
+        }
+
         this.updatePlayer(deltaTime)
+        this.applyLoadoutEffects(deltaTime)
         this.updateMobs(deltaTime)
         this.updateBullets(deltaTime)
         this.updateItems(deltaTime)
@@ -246,6 +289,7 @@ export class Game {
     }
 
     shoot() {
+        if (this.isHome) return
         const now = Date.now()
         if (now - this.lastShootTime < this.shootCooldown) return
 
@@ -264,6 +308,7 @@ export class Game {
     }
 
     useAbility() {
+        if (this.isHome) return
         if (this.player.abilityCooldown > 0 || !this.player.class) return
 
         const classData = this.classes[this.player.class]
@@ -345,6 +390,7 @@ export class Game {
             this.player.class = className
             this.player.classLevel = 0
             Object.assign(this.player, classData.stats)
+            this.addInventoryItem({ id: className, name: 'Class: ' + className, type: 'class' })
             this.updateUI()
             console.log(`Selected class: ${className}`)
         } else {
@@ -352,88 +398,327 @@ export class Game {
         }
     }
 
-    toggleShop() {
-        this.shopOpen = !this.shopOpen
-        const shopMenu = document.getElementById('shopMenu')
+    toggleHomeShop() {
+        this.homeShopOpen = !this.homeShopOpen
+        const shopMenu = document.getElementById('homeShopMenu')
         if (shopMenu) {
-            shopMenu.style.display = this.shopOpen ? 'block' : 'none'
-            if (this.shopOpen) this.renderShop()
+            shopMenu.style.display = this.homeShopOpen ? 'block' : 'none'
+            if (this.homeShopOpen) this.renderHomeShop()
         }
     }
 
-    renderShop() {
-        const shopItems = document.getElementById('shopItems')
+    renderHomeShop() {
+        const shopItems = document.getElementById('homeShopItems')
         if (!shopItems) return
 
         shopItems.innerHTML = ''
 
-        const shopInventory = [
-            { id: 'health_potion', name: 'Health Potion', cost: 50, description: 'Restore 50 HP' },
-            { id: 'damage_boost', name: 'Damage Boost', cost: 100, description: '+5 permanent damage' },
-            { id: 'speed_boost', name: 'Speed Boost', cost: 150, description: '+10 permanent speed' },
-            { id: 'max_health', name: 'Max Health Up', cost: 200, description: '+20 max health' },
-            { id: 'loot_magnet', name: 'Loot Magnet', cost: 75, description: 'Attract nearby items' }
+        const grouped = {
+            healing: [],
+            combat: [],
+            utility: [],
+            class: []
+        }
+
+        this.homeShopInventory.forEach(item => {
+            grouped[item.category] = grouped[item.category] || []
+            grouped[item.category].push(item)
+        })
+
+        const categories = [
+            { key: 'healing', label: 'Healing Loadout' },
+            { key: 'combat', label: 'Combat Loadout' },
+            { key: 'utility', label: 'Utility Loadout' },
+            { key: 'class', label: 'Classes' }
         ]
 
-        shopInventory.forEach(item => {
-            const itemDiv = document.createElement('div')
-            itemDiv.style.cssText = `
-                background: rgba(0, 255, 136, 0.1);
-                border: 1px solid #00ff88;
-                padding: 10px;
-                margin: 5px 0;
-                border-radius: 5px;
-                cursor: pointer;
-                transition: all 0.2s;
-            `
-            itemDiv.innerHTML = `
-                <strong style="color: #ffff00">${item.name}</strong><br>
-                <small style="color: #ffffff">${item.description}</small><br>
-                <span style="color: #f1c40f">Cost: ${item.cost} gold</span>
-            `
-            itemDiv.onclick = () => this.buyItem(item.id, item.cost)
-            itemDiv.onmouseover = () => itemDiv.style.background = 'rgba(0, 255, 136, 0.2)'
-            itemDiv.onmouseout = () => itemDiv.style.background = 'rgba(0, 255, 136, 0.1)'
-            shopItems.appendChild(itemDiv)
+        categories.forEach(cat => {
+            const heading = document.createElement('div')
+            heading.style.cssText = 'margin: 18px 0 8px; font-weight: bold; color: #7cffb2; letter-spacing: 0.05em;'
+            heading.textContent = cat.label
+            shopItems.appendChild(heading)
+
+            grouped[cat.key].forEach(item => {
+                const itemDiv = document.createElement('div')
+                itemDiv.style.cssText = `
+                    background: rgba(255, 255, 255, 0.05);
+                    border: 1px solid rgba(255, 255, 255, 0.15);
+                    padding: 14px;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    display: grid;
+                    gap: 6px;
+                    transition: background 0.2s ease;
+                `
+                itemDiv.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <strong style="color: #f1c40f">${item.name}</strong>
+                        <span style="color: #ffcc00; font-weight: bold;">${item.cost}g</span>
+                    </div>
+                    <div style="color: #d4f7d7;">${item.description}</div>
+                    <div style="color: #79d2ff; font-size: 13px;">Category: ${item.category}</div>
+                `
+                itemDiv.onclick = () => this.buyItem(item.id, item.cost, item)
+                itemDiv.onmouseover = () => itemDiv.style.background = 'rgba(255, 255, 255, 0.12)'
+                itemDiv.onmouseout = () => itemDiv.style.background = 'rgba(255, 255, 255, 0.05)'
+                shopItems.appendChild(itemDiv)
+            })
         })
     }
 
-    buyItem(itemId, cost) {
+    buyItem(itemId, cost, itemData = null) {
         if (this.player.gold < cost) {
             alert('Not enough gold!')
             return
         }
 
         this.player.gold -= cost
+        const itemType = itemData ? itemData.type : 'shop'
+        const inventoryItem = { id: itemId, name: itemData ? itemData.name : itemId, type: itemType, category: itemData ? itemData.category : null }
 
-        switch (itemId) {
-            case 'health_potion':
-                this.player.health = Math.min(this.player.maxHealth, this.player.health + 50)
-                break
-            case 'damage_boost':
-                this.player.damage += 5
-                break
-            case 'speed_boost':
-                this.player.speed += 10
-                break
-            case 'max_health':
-                this.player.maxHealth += 20
-                this.player.health += 20
-                break
-            case 'loot_magnet':
-                // Attract all items within range
-                this.items.forEach(item => {
-                    const dist = Math.sqrt((this.player.x - item.x) ** 2 + (this.player.y - item.y) ** 2)
-                    if (dist < 200) {
-                        item.x = this.player.x + (Math.random() - 0.5) * 20
-                        item.y = this.player.y + (Math.random() - 0.5) * 20
-                    }
-                })
-                break
+        if (itemType === 'class') {
+            this.applyClass(itemId)
+            this.addInventoryItem(inventoryItem)
+        } else {
+            this.addInventoryItem(inventoryItem)
+            switch (itemId) {
+                case 'health_potion':
+                    this.player.health = Math.min(this.player.maxHealth, this.player.health + 50)
+                    break
+                    case 'loot_magnet':
+                case 'boost_potion':
+                case 'speed_boost':
+                case 'damage_boost':
+                case 'regeneration':
+                case 'medkit':
+                case 'loot_boost':
+                case 'armour_piece':
+                    // these are not immediate: equip them from inventory
+                    break
+            }
         }
 
         this.updateUI()
-        this.renderShop() // Refresh shop display
+        if (this.homeShopOpen) this.renderHomeShop()
+    }
+
+    applyClass(classId) {
+        const classData = this.classes[classId]
+        if (!classData) return
+
+        this.player.class = classId
+        this.player.classLevel = 0
+        Object.assign(this.player, classData.stats)
+        this.player.maxHealth = classData.stats.health
+        this.player.health = Math.min(this.player.health, this.player.maxHealth)
+    }
+
+    equipLoadout(category, itemId) {
+        if (!['healing', 'combat', 'utility'].includes(category)) return
+        const item = this.player.inventory.find(entry => entry.category === category && entry.id === itemId)
+        if (!item) return
+        this.player.loadout[category] = itemId
+        this.updateUI()
+        if (this.inventoryOpen) this.renderInventory()
+    }
+
+    applyLoadoutEffects(deltaTime) {
+        const loadout = this.player.loadout
+
+        // Reset dynamic modifiers before applying
+        this.player.loadoutDamageBonus = 0
+        this.player.loadoutSpeedBonus = 0
+        this.player.loadoutDamageReduction = 0
+        this.player.loadoutLootBonus = 0
+
+        if (loadout.healing === 'regeneration') {
+            this.player.health = Math.min(this.player.maxHealth, this.player.health + 4 * deltaTime)
+        }
+        if (loadout.healing === 'medkit') {
+            this.player.health = Math.min(this.player.maxHealth, this.player.health + 2 * deltaTime)
+        }
+        if (loadout.combat === 'damage_boost') {
+            this.player.loadoutDamageBonus += 5
+        }
+        if (loadout.combat === 'speed_boost') {
+            this.player.loadoutSpeedBonus += 10
+        }
+        if (loadout.combat === 'boost_potion') {
+            this.player.loadoutDamageBonus += 5
+            this.player.loadoutSpeedBonus += 15
+        }
+        if (loadout.utility === 'loot_boost') {
+            this.player.loadoutLootBonus += 0.2
+        }
+        if (loadout.utility === 'armour_piece') {
+            this.player.loadoutDamageReduction += 0.15
+        }
+
+        this.player.damage = (this.classes[this.player.class]?.stats.damage || 10) + this.player.loadoutDamageBonus
+        this.player.speed = (this.classes[this.player.class]?.stats.speed || 120) + this.player.loadoutSpeedBonus
+    }
+    startBattle() {
+        this.isHome = false
+        this.hideAllOverlays()
+        this.resetBattlefield()
+        this.updateUI()
+        this.showHomeButton()
+    }
+
+    showHomeScreen() {
+        const homeScreen = document.getElementById('homeScreen')
+        if (homeScreen) homeScreen.style.display = 'flex'
+        this.isHome = true
+        this.hideHomeButton()
+    }
+
+    hideAllOverlays() {
+        const homeScreen = document.getElementById('homeScreen')
+        const homeShopMenu = document.getElementById('homeShopMenu')
+        const inventoryMenu = document.getElementById('inventoryMenu')
+        if (homeScreen) homeScreen.style.display = 'none'
+        if (homeShopMenu) homeShopMenu.style.display = 'none'
+        if (inventoryMenu) inventoryMenu.style.display = 'none'
+        this.homeShopOpen = false
+        this.inventoryOpen = false
+    }
+
+    openInventory() {
+        const inventoryMenu = document.getElementById('inventoryMenu')
+        if (!inventoryMenu) return
+        this.inventoryOpen = !this.inventoryOpen
+        inventoryMenu.style.display = this.inventoryOpen ? 'block' : 'none'
+        if (this.inventoryOpen) this.renderInventory()
+    }
+
+    renderInventory() {
+        const inventoryContents = document.getElementById('inventoryContents')
+        if (!inventoryContents) return
+
+        inventoryContents.innerHTML = ''
+        const inventoryList = [...this.player.inventory]
+
+        const categories = [
+            { key: 'healing', label: 'Healing' },
+            { key: 'combat', label: 'Combat' },
+            { key: 'utility', label: 'Utility' }
+        ]
+
+        const loadoutPanel = document.createElement('div')
+        loadoutPanel.style.cssText = `
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 14px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            color: #e2f9ff;
+        `
+        loadoutPanel.innerHTML = `
+            <div style="font-size: 16px; font-weight: bold; margin-bottom: 10px; color: #7cffb2;">Current Loadout</div>
+            ${categories.map(cat => {
+                const equipped = this.player.loadout[cat.key] ? this.player.loadout[cat.key].replace(/_/g, ' ') : 'None'
+                return `<div style="margin: 6px 0;">${cat.label}: <strong style="color: #ffcc00">${equipped}</strong></div>`
+            }).join('')}
+            <div style="margin-top: 10px; color: #cbd5e1; font-size: 13px;">Click any compatible item below to equip it into its loadout slot.</div>
+        `
+        inventoryContents.appendChild(loadoutPanel)
+
+        if (inventoryList.length === 0) {
+            const emptyMessage = document.createElement('div')
+            emptyMessage.style.color = '#cbd5e1'
+            emptyMessage.textContent = 'Inventory is empty. Collect loot and buy upgrades from the home shop.'
+            inventoryContents.appendChild(emptyMessage)
+            return
+        }
+
+        inventoryList.forEach(item => {
+            const itemDiv = document.createElement('div')
+            itemDiv.style.cssText = `
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                padding: 12px;
+                border-radius: 10px;
+                display: grid;
+                grid-template-columns: 1fr auto;
+                gap: 10px;
+                color: #e2f9ff;
+                align-items: center;
+            `
+            itemDiv.innerHTML = `
+                <div>
+                    <strong>${item.name}</strong><br>
+                    <span style="font-size: 13px; color: #a7f3d0">${item.category || item.type}</span><br>
+                    <span style="color: #f8f9fa; font-size: 13px;">${item.id}</span>
+                </div>
+            `
+            if (['healing', 'combat', 'utility'].includes(item.category)) {
+                const button = document.createElement('button')
+                button.textContent = this.player.loadout[item.category] === item.id ? 'Equipped' : 'Equip'
+                button.disabled = this.player.loadout[item.category] === item.id
+                button.style.cssText = `
+                    padding: 8px 12px;
+                    cursor: pointer;
+                    border-radius: 8px;
+                    border: none;
+                    background: ${button.disabled ? '#4b5563' : '#00ff88'};
+                    color: ${button.disabled ? '#d1d5db' : '#061c10'};
+                    font-weight: bold;
+                `
+                button.onclick = () => this.equipLoadout(item.category, item.id)
+                itemDiv.appendChild(button)
+            }
+            inventoryContents.appendChild(itemDiv)
+        })
+    }
+
+    addInventoryItem(item) {
+        if (!this.player.inventory.some(entry => entry.id === item.id && entry.type === item.type)) {
+            this.player.inventory.push(item)
+        }
+    }
+
+    confirmReturnHome() {
+        if (!confirm('Return to home and reset battlefield progress?')) {
+            return
+        }
+        this.returnToHome()
+    }
+
+    returnToHome() {
+        this.resetBattlefield()
+        this.showHomeScreen()
+        this.updateUI()
+    }
+
+    resetBattlefield() {
+        this.mobs = []
+        this.bullets = []
+        this.items = []
+        this.kills = 0
+        this.initializeBosses()
+        this.player.x = this.player.runStartX
+        this.player.y = this.player.runStartY
+        this.player.health = this.player.maxHealth
+        this.player.exp = 0
+        this.player.level = 1
+        this.player.expToNext = 100
+        this.player.invisible = false
+        this.player.abilityActive = false
+        this.player.abilityDuration = 0
+        this.player.abilityCooldown = 0
+        this.player.shield = false
+        this.player.flamethrower = false
+        this.player.megaRobot = null
+    }
+
+    showHomeButton() {
+        const homeButton = document.getElementById('homeButton')
+        if (homeButton) homeButton.style.display = 'block'
+    }
+
+    hideHomeButton() {
+        const homeButton = document.getElementById('homeButton')
+        if (homeButton) homeButton.style.display = 'none'
     }
 
     spawnMobs() {
@@ -452,12 +737,13 @@ export class Game {
                     size: 12 + level * 2,
                     health: 20 + level * 15,
                     maxHealth: 20 + level * 15,
-                    speed: 37.5 + level * 7.5,
+                    speed: 30 + level * 4,
                     damage: 5 + level * 2,
                     exp: 10 + level * 10,
                     gold: 5 + level * 3,
                     color: ['#ff6b6b', '#ff8c42', '#a64dff'][Math.floor(Math.random() * 3)],
-                    level: level
+                    level: level,
+                    wander: { dx: 0, dy: 0 }
                 })
             }
         }
@@ -465,15 +751,40 @@ export class Game {
 
     updateMobs(deltaTime) {
         this.mobs.forEach((mob, index) => {
-            // Move towards player
             const dx = this.player.x - mob.x
             const dy = this.player.y - mob.y
             const dist = Math.sqrt(dx * dx + dy * dy)
+            const chaseRadius = 150
+            const forgetRadius = 250
 
-            if (dist > 0) {
-                mob.x += (dx / dist) * mob.speed * deltaTime
-                mob.y += (dy / dist) * mob.speed * deltaTime
+            if (dist < chaseRadius) {
+                // Player is nearby: chase toward the player
+                mob.wander = { dx: 0, dy: 0 }
+                if (dist > 0) {
+                    mob.x += (dx / dist) * mob.speed * deltaTime
+                    mob.y += (dy / dist) * mob.speed * deltaTime
+                }
+            } else if (dist > forgetRadius) {
+                // Player is far away: wander slowly
+                if (!mob.wander || Math.random() < 0.005) {
+                    const angle = Math.random() * Math.PI * 2
+                    mob.wander = { dx: Math.cos(angle), dy: Math.sin(angle) }
+                }
+                mob.x += mob.wander.dx * mob.speed * deltaTime * 0.2
+                mob.y += mob.wander.dy * mob.speed * deltaTime * 0.2
+            } else {
+                // Player is in middle range: wander randomly but don't chase
+                if (!mob.wander || Math.random() < 0.01) {
+                    const angle = Math.random() * Math.PI * 2
+                    mob.wander = { dx: Math.cos(angle), dy: Math.sin(angle) }
+                }
+                mob.x += mob.wander.dx * mob.speed * deltaTime * 0.3
+                mob.y += mob.wander.dy * mob.speed * deltaTime * 0.3
             }
+
+            // Keep mobs in bounds
+            mob.x = Math.max(0, Math.min(this.worldWidth, mob.x))
+            mob.y = Math.max(0, Math.min(this.worldHeight, mob.y))
 
             // Attack player if close
             if (dist < 30 && !this.player.invisible) {
@@ -528,7 +839,8 @@ export class Game {
         this.player.gold += mob.gold
 
         // Drop loot
-        if (Math.random() < 0.3) {
+        const dropChance = 0.3 + (this.player.loadoutLootBonus || 0)
+        if (Math.random() < dropChance) {
             const lootTypes = ['xp', 'gold', 'medkit', 'meat', 'gun']
             const lootType = lootTypes[Math.floor(Math.random() * lootTypes.length)]
             this.items.push({
@@ -564,6 +876,14 @@ export class Game {
     updateItems(deltaTime) {
         this.items.forEach((item, index) => {
             const dist = Math.sqrt((this.player.x - item.x) ** 2 + (this.player.y - item.y) ** 2)
+
+            if (this.player.loadout.utility === 'loot_magnet' && dist < 160) {
+                const attractX = (this.player.x - item.x) * 0.03
+                const attractY = (this.player.y - item.y) * 0.03
+                item.x += attractX
+                item.y += attractY
+            }
+
             if (dist < 30) {
                 // Pickup item
                 switch (item.type) {
@@ -575,12 +895,15 @@ export class Game {
                         break
                     case 'medkit':
                         this.player.health = Math.min(this.player.maxHealth, this.player.health + 50)
+                        this.addInventoryItem({ id: 'medkit', name: 'Medkit', type: 'loot' })
                         break
                     case 'meat':
                         this.player.health = Math.min(this.player.maxHealth, this.player.health + 25)
+                        this.addInventoryItem({ id: 'meat', name: 'Meat', type: 'loot' })
                         break
                     case 'gun':
                         this.player.damage += 5
+                        this.addInventoryItem({ id: 'gun', name: 'Dropped Gun', type: 'loot' })
                         break
                 }
                 this.items.splice(index, 1)
@@ -605,6 +928,10 @@ export class Game {
         document.getElementById('mobCount').textContent = this.mobs.length
         document.getElementById('killCount').textContent = this.kills
 
+        // Update home gold display
+        const homeGoldEl = document.getElementById('homeGoldValue')
+        if (homeGoldEl) homeGoldEl.textContent = this.player.gold
+
         // Update ability display
         const abilityEl = document.getElementById('dashAbility')
         if (this.player.abilityCooldown > 0) {
@@ -618,6 +945,7 @@ export class Game {
 
     render() {
         this.renderer.clear()
+        this.renderer.drawInfiniteBackground(this.camera)
         this.renderer.drawBiomeBackground(this.camera, this.worldWidth, this.worldHeight)
 
         // Draw bosses
