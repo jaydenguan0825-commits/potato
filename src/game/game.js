@@ -87,9 +87,23 @@ export class Game {
 
         // Input
         this.keys = {}
+        this.controls = {
+            up: 'w',
+            down: 's',
+            left: 'a',
+            right: 'd',
+            shoot: ' ',
+            ability: 'z',
+            inventory: 'e',
+            shop: 'p',
+            settings: 'o'
+        }
+        this.bindingAction = null
         this.mouse = { x: 0, y: 0 }
+        this.mouseAim = { x: 1, y: 0, active: false }
         this.lastShootTime = 0
         this.shootCooldown = 200
+        this.loadControlSettings()
 
         // Classes
         this.classes = {
@@ -192,35 +206,69 @@ export class Game {
 
     setupInputHandlers() {
         document.addEventListener('keydown', (e) => {
-            this.keys[e.key.toLowerCase()] = true
+            const rawKey = e.key
+            const key = rawKey.length === 1 ? rawKey.toLowerCase() : rawKey.toLowerCase()
 
-            if (e.key === ' ') {
+            if (this.bindingAction) {
+                const action = this.bindingAction
+                this.controls[action] = key
+                this.bindingAction = null
+                this.saveControlSettings()
+                this.renderSettings()
+                const bindingHint = document.getElementById('bindingHint')
+                if (bindingHint) {
+                    bindingHint.textContent = `Bound ${this.getActionLabel(action)} to ${this.formatKeyLabel(key)}.`
+                }
+                e.preventDefault()
+                return
+            }
+
+            this.keys[key] = true
+
+            if (key === this.controls.shoot) {
                 this.shoot()
                 e.preventDefault()
             }
-            if (e.key === 'z' || e.key === 'Z') {
+            if (key === this.controls.ability) {
                 this.useAbility()
             }
-            if (e.key === 'e' || e.key === 'E') {
+            if (key === this.controls.inventory) {
                 this.openInventory()
             }
-            if (e.key === 'p' || e.key === 'P') {
+            if (key === this.controls.shop) {
                 if (this.isHome) {
                     this.toggleHomeShop()
                 } else {
                     this.confirmReturnHome()
                 }
             }
+            if (key === this.controls.settings) {
+                this.openSettings()
+            }
         })
 
         document.addEventListener('keyup', (e) => {
-            this.keys[e.key.toLowerCase()] = false
+            const key = e.key.length === 1 ? e.key.toLowerCase() : e.key.toLowerCase()
+            this.keys[key] = false
         })
 
         document.addEventListener('mousemove', (e) => {
             const rect = this.canvas.getBoundingClientRect()
-            this.mouse.x = e.clientX - rect.left
-            this.mouse.y = e.clientY - rect.top
+            const x = e.clientX - rect.left
+            const y = e.clientY - rect.top
+            this.mouse.x = x
+            this.mouse.y = y
+
+            const centerX = this.canvas.width / 2
+            const centerY = this.canvas.height / 2
+            const dx = x - centerX
+            const dy = y - centerY
+            const dist = Math.sqrt(dx * dx + dy * dy)
+            if (dist > 8) {
+                this.mouseAim.x = dx / dist
+                this.mouseAim.y = dy / dist
+                this.mouseAim.active = true
+            }
         })
 
         document.addEventListener('click', () => {
@@ -249,22 +297,15 @@ export class Game {
         let moveX = 0
         let moveY = 0
 
-        if (this.keys['w']) moveY -= 1
-        if (this.keys['s']) moveY += 1
-        if (this.keys['a']) moveX -= 1
-        if (this.keys['d']) moveX += 1
+        if (this.keys[this.controls.up]) moveY -= 1
+        if (this.keys[this.controls.down]) moveY += 1
+        if (this.keys[this.controls.left]) moveX -= 1
+        if (this.keys[this.controls.right]) moveX += 1
 
-        // Mouse movement
-        if (this.mouse.x !== 0 || this.mouse.y !== 0) {
-            const centerX = this.canvas.width / 2
-            const centerY = this.canvas.height / 2
-            const dx = this.mouse.x - centerX
-            const dy = this.mouse.y - centerY
-            const dist = Math.sqrt(dx * dx + dy * dy)
-            if (dist > 10) {
-                moveX = dx / dist
-                moveY = dy / dist
-            }
+        if (this.mouseAim.active) {
+            this.player.direction = Math.atan2(this.mouseAim.y, this.mouseAim.x)
+        } else if (moveX !== 0 || moveY !== 0) {
+            this.player.direction = Math.atan2(moveY, moveX)
         }
 
         // Normalize diagonal movement
@@ -281,11 +322,6 @@ export class Game {
         // Keep in bounds
         this.player.x = Math.max(0, Math.min(this.worldWidth, this.player.x))
         this.player.y = Math.max(0, Math.min(this.worldHeight, this.player.y))
-
-        // Update direction
-        if (moveX !== 0 || moveY !== 0) {
-            this.player.direction = Math.atan2(moveY, moveX)
-        }
     }
 
     shoot() {
@@ -576,11 +612,14 @@ export class Game {
         const homeScreen = document.getElementById('homeScreen')
         const homeShopMenu = document.getElementById('homeShopMenu')
         const inventoryMenu = document.getElementById('inventoryMenu')
+        const settingsMenu = document.getElementById('settingsMenu')
         if (homeScreen) homeScreen.style.display = 'none'
         if (homeShopMenu) homeShopMenu.style.display = 'none'
         if (inventoryMenu) inventoryMenu.style.display = 'none'
+        if (settingsMenu) settingsMenu.style.display = 'none'
         this.homeShopOpen = false
         this.inventoryOpen = false
+        this.bindingAction = null
     }
 
     openInventory() {
@@ -589,6 +628,105 @@ export class Game {
         this.inventoryOpen = !this.inventoryOpen
         inventoryMenu.style.display = this.inventoryOpen ? 'block' : 'none'
         if (this.inventoryOpen) this.renderInventory()
+    }
+
+    openSettings() {
+        const settingsMenu = document.getElementById('settingsMenu')
+        if (!settingsMenu) return
+        this.renderSettings()
+        settingsMenu.style.display = 'block'
+        this.inventoryOpen = false
+        const inventoryMenu = document.getElementById('inventoryMenu')
+        if (inventoryMenu) inventoryMenu.style.display = 'none'
+        const shopMenu = document.getElementById('homeShopMenu')
+        if (shopMenu) shopMenu.style.display = 'none'
+        this.homeShopOpen = false
+    }
+
+    closeSettings() {
+        const settingsMenu = document.getElementById('settingsMenu')
+        if (settingsMenu) settingsMenu.style.display = 'none'
+        this.bindingAction = null
+        const bindingHint = document.getElementById('bindingHint')
+        if (bindingHint) bindingHint.textContent = 'Click a control button to rebind it.'
+    }
+
+    renderSettings() {
+        const controlsSettings = document.getElementById('controlsSettings')
+        if (!controlsSettings) return
+        const bindings = [
+            { action: 'up', label: 'Move Up' },
+            { action: 'down', label: 'Move Down' },
+            { action: 'left', label: 'Move Left' },
+            { action: 'right', label: 'Move Right' },
+            { action: 'shoot', label: 'Shoot' },
+            { action: 'ability', label: 'Ability' },
+            { action: 'inventory', label: 'Inventory' },
+            { action: 'shop', label: 'Shop / Home' },
+            { action: 'settings', label: 'Open Settings' }
+        ]
+        controlsSettings.innerHTML = bindings.map(binding => `
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px; background: rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:10px;">
+                <span>${binding.label}</span>
+                <button id="control-${binding.action}" style="padding: 10px 14px; border:none; border-radius:10px; background:#00ff88; color:#061c10; cursor:pointer; font-weight:bold;">${this.formatKeyLabel(this.controls[binding.action])}</button>
+            </div>
+        `).join('')
+
+        bindings.forEach(binding => {
+            const button = document.getElementById(`control-${binding.action}`)
+            if (button) {
+                button.onclick = () => this.beginKeyBinding(binding.action)
+            }
+        })
+    }
+
+    beginKeyBinding(action) {
+        this.bindingAction = action
+        const bindingHint = document.getElementById('bindingHint')
+        if (bindingHint) {
+            bindingHint.textContent = `Press a key to bind "${this.getActionLabel(action)}".`
+        }
+    }
+
+    saveControlSettings() {
+        localStorage.setItem('potatoGameControls', JSON.stringify(this.controls))
+        const bindingHint = document.getElementById('bindingHint')
+        if (bindingHint) {
+            bindingHint.textContent = 'Controls saved.'
+        }
+    }
+
+    loadControlSettings() {
+        const saved = localStorage.getItem('potatoGameControls')
+        if (!saved) return
+        try {
+            const loaded = JSON.parse(saved)
+            this.controls = Object.assign(this.controls, loaded)
+        } catch (err) {
+            console.warn('Failed to load saved controls', err)
+        }
+    }
+
+    getActionLabel(action) {
+        const labels = {
+            up: 'Move Up',
+            down: 'Move Down',
+            left: 'Move Left',
+            right: 'Move Right',
+            shoot: 'Shoot',
+            ability: 'Ability',
+            inventory: 'Inventory',
+            shop: 'Shop / Home',
+            settings: 'Open Settings'
+        }
+        return labels[action] || action
+    }
+
+    formatKeyLabel(key) {
+        if (!key) return 'Unbound'
+        if (key === ' ') return 'Space'
+        if (key.startsWith('arrow')) return key.slice(0, 5).toUpperCase() + key.slice(5)
+        return key.length === 1 ? key.toUpperCase() : key[0].toUpperCase() + key.slice(1)
     }
 
     renderInventory() {
@@ -938,7 +1076,7 @@ export class Game {
             abilityEl.textContent = `ABILITY: ${Math.ceil(this.player.abilityCooldown / 1000)}s`
             abilityEl.className = 'ability cooldown'
         } else {
-            abilityEl.textContent = 'ABILITY [Z]: Ready'
+            abilityEl.textContent = `ABILITY [${this.formatKeyLabel(this.controls.ability)}]: Ready`
             abilityEl.className = 'ability ready'
         }
     }

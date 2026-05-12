@@ -1,11 +1,10 @@
-# Florr.io - A Multiplayer .io Game
+# Potato - A Multiplayer .io Game
 
 A modern, fast-paced multiplayer PvE .io-style game built with Vite, Canvas, and Node.js/Socket.io.
 
 ## Features
 
-- **Real-time Multiplayer**: Play with other players in a shared world
-- **Class System**: Choose from 7 different classes, each with unique abilities
+- **Class System**: Choose from 3 different classes, each with unique abilities, and each upgrading to a stronger class
 - **Dynamic Progression**: Level up, gain exp, and unlock abilities
 - **Boss Battles**: Defeat 5 unique bosses scattered across the map
 - **Biome System**: Explore 5 distinct biomes (Plain, Snowy Mountain, Volcano, Jungle, Desert)

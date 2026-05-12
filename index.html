@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Florr.io</title>
+    <title>Potato</title>
     <style>
         * {
             margin: 0;
@@ -170,7 +170,7 @@
     <!-- Home Screen Overlay -->
     <div id="homeScreen" style="display: flex; position: fixed; inset: 0; justify-content: center; align-items: center; background: rgba(4, 8, 22, 0.95); z-index: 1000;">
         <div style="background: linear-gradient(135deg, #101828, #122147); border: 3px solid #00ff88; border-radius: 20px; padding: 30px; width: min(520px, 90%); color: #d4f7d7; font-family: 'Courier New', monospace; box-shadow: 0 0 30px rgba(0, 255, 136, 0.25);">
-            <h1 style="margin-bottom: 16px; font-size: 42px; text-align: center; color: #7cffb2;">Florr.io</h1>
+            <h1 style="margin-bottom: 16px; font-size: 42px; text-align: center; color: #7cffb2;">Potato</h1>
             <div style="text-align: center; margin-bottom: 20px; padding: 10px; background: rgba(255, 204, 0, 0.1); border: 1px solid #ffcc00; border-radius: 8px;">
                 <span style="color: #ffcc00; font-size: 18px; font-weight: bold;">Gold: <span id="homeGoldValue">0</span></span>
             </div>
@@ -179,6 +179,7 @@
                 <button onclick="window.game.startBattle()" style="padding: 14px; font-size: 16px; cursor: pointer; background: #00ff88; border: none; color: #061c10; border-radius: 12px; font-weight: bold;">START RUN</button>
                 <button onclick="window.game.toggleHomeShop()" style="padding: 14px; font-size: 16px; cursor: pointer; background: #ffcc00; border: none; color: #1d1700; border-radius: 12px; font-weight: bold;">SHOP</button>
                 <button onclick="window.game.openInventory()" style="padding: 14px; font-size: 16px; cursor: pointer; background: #3c86ff; border: none; color: white; border-radius: 12px; font-weight: bold;">INVENTORY</button>
+                <button onclick="window.game.openSettings()" style="padding: 14px; font-size: 16px; cursor: pointer; background: #8a5cff; border: none; color: white; border-radius: 12px; font-weight: bold;">SETTINGS</button>
             </div>
             <div style="margin-top: 24px; display: grid; gap: 10px; font-size: 14px; color: #b8f7bf;">
                 <div>• Press <strong>P</strong> on home screen to open shop.</div>
@@ -196,6 +197,17 @@
                 <!-- Home shop items will be populated by JavaScript -->
             </div>
             <button onclick="window.game.toggleHomeShop()" style="margin-top: 20px; width: 100%; padding: 12px; background: #ff3f3f; color: white; border: none; cursor: pointer; border-radius: 10px; font-weight: bold;">CLOSE SHOP</button>
+        </div>
+    </div>
+
+    <!-- Settings Overlay -->
+    <div id="settingsMenu" style="display: none; position: fixed; inset: 0; background: rgba(4, 10, 22, 0.96); z-index: 1002; padding: 30px; overflow-y: auto;">
+        <div style="max-width: 840px; margin: 0 auto; color: #d8f3ff; font-family: 'Courier New', monospace;">
+            <h2 style="text-align: center; color: #7cffb2; margin-bottom: 20px;">⚙️ SETTINGS</h2>
+            <div id="controlsSettings" style="display: grid; gap: 12px; margin-bottom: 18px;"></div>
+            <div id="bindingHint" style="margin-bottom: 18px; color: #d4f7d7; font-size: 14px;">Click a control button to rebind it.</div>
+            <button onclick="window.game.saveControlSettings()" style="margin-top: 10px; width: 100%; padding: 12px; background: #00ff88; color: #061c10; border: none; cursor: pointer; border-radius: 10px; font-weight: bold;">SAVE CONTROLS</button>
+            <button onclick="window.game.closeSettings()" style="margin-top: 12px; width: 100%; padding: 12px; background: #ff3f3f; color: white; border: none; cursor: pointer; border-radius: 10px; font-weight: bold;">CLOSE SETTINGS</button>
         </div>
     </div>
 
