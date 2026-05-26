@@ -11,6 +11,19 @@ const io = new Server(server, {
     cors: { origin: '*' }
 })
 
+// Serve static files from parent directory (dist or root)
+app.use(express.static(path.join(__dirname, '..')))
+app.use(express.static(path.join(__dirname, '..', 'dist')))
+
+// Route handler for SPA - serve login.html for /login, index.html for others
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'login.html'))
+})
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'index.html'))
+})
+
 const PORT = 3000
 const WORLD_WIDTH = 2000
 const WORLD_HEIGHT = 2000
