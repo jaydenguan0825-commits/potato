@@ -41,6 +41,7 @@ export class Game {
         this.bosses = []
         this.items = []
         this.bullets = []
+        this.bossBullets = []
         this.particles = []
         this.kills = 0
         this.lastMobCount = 0
@@ -56,7 +57,7 @@ export class Game {
             utility: null
         }
         this.player.runStartX = 1000
-        this.player.runStartY = 1000
+        this.player.runStartY = 1400
 
         this.homeShopInventory = [
             { id: 'health_potion', name: 'Health Potion', cost: 50, description: 'Healing slot: restore 50 HP instantly.', type: 'healing', category: 'healing' },
@@ -65,6 +66,9 @@ export class Game {
             { id: 'damage_boost', name: 'Damage Boost', cost: 100, description: 'Combat slot: increases base damage.', type: 'combat', category: 'combat' },
             { id: 'speed_boost', name: 'Speed Boost', cost: 150, description: 'Combat slot: increases movement speed.', type: 'combat', category: 'combat' },
             { id: 'boost_potion', name: 'Boost Potion', cost: 200, description: 'Combat slot: strong damage and speed bonus.', type: 'combat', category: 'combat' },
+            { id: 'pistol', name: 'Pistol', cost: 80, description: 'Combat slot: basic gun (+8 damage).', type: 'combat', category: 'combat' },
+            { id: 'rifle', name: 'Rifle', cost: 250, description: 'Combat slot: powerful gun (+15 damage).', type: 'combat', category: 'combat' },
+            { id: 'shotgun', name: 'Shotgun', cost: 350, description: 'Combat slot: heavy gun (+25 damage).', type: 'combat', category: 'combat' },
             { id: 'loot_magnet', name: 'Loot Magnet', cost: 75, description: 'Utility slot: attracts nearby items.', type: 'utility', category: 'utility' },
             { id: 'loot_boost', name: 'Loot Boost', cost: 120, description: 'Utility slot: increases your loot drop chance.', type: 'utility', category: 'utility' },
             { id: 'armour_piece', name: 'Armour Piece', cost: 180, description: 'Utility slot: reduces incoming damage.', type: 'utility', category: 'utility' },
@@ -188,10 +192,25 @@ export class Game {
     }
 
     resizeCanvas() {
-        this.canvas.width = window.innerWidth
-        this.canvas.height = window.innerHeight
-        this.renderer.width = this.canvas.width
-        this.renderer.height = this.canvas.height
+        const dpr = window.devicePixelRatio || 1
+
+        // Set CSS size
+        this.canvas.style.width = window.innerWidth + 'px'
+        this.canvas.style.height = window.innerHeight + 'px'
+
+        // Set backing store size for crisp rendering on high-DPI displays
+        this.canvas.width = Math.floor(window.innerWidth * dpr)
+        this.canvas.height = Math.floor(window.innerHeight * dpr)
+
+        // Renderer logical size (in CSS pixels)
+        this.renderer.width = window.innerWidth
+        this.renderer.height = window.innerHeight
+
+        // Scale drawing operations so coordinates are in CSS pixels
+        if (this.renderer && this.renderer.ctx && this.renderer.ctx.setTransform) {
+            this.renderer.ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+            this.renderer.ctx.imageSmoothingEnabled = false
+        }
     }
 
     initializeBosses() {
@@ -284,7 +303,9 @@ export class Game {
         this.updatePlayer(deltaTime)
         this.applyLoadoutEffects(deltaTime)
         this.updateMobs(deltaTime)
+        this.updateBosses(deltaTime)
         this.updateBullets(deltaTime)
+        this.updateBossBullets(deltaTime)
         this.updateItems(deltaTime)
         this.updateAbilities(deltaTime)
         this.spawnMobs()
@@ -521,7 +542,10 @@ export class Game {
                 case 'health_potion':
                     this.player.health = Math.min(this.player.maxHealth, this.player.health + 50)
                     break
-                    case 'loot_magnet':
+                case 'pistol':
+                case 'rifle':
+                case 'shotgun':
+                case 'loot_magnet':
                 case 'boost_potion':
                 case 'speed_boost':
                 case 'damage_boost':
@@ -573,6 +597,12 @@ export class Game {
         if (loadout.healing === 'medkit') {
             this.player.health = Math.min(this.player.maxHealth, this.player.health + 2 * deltaTime)
         }
+        if (loadout.healing === 'medkit_loot' || loadout.healing === 'medkit') {
+            this.player.health = Math.min(this.player.maxHealth, this.player.health + 2.5 * deltaTime)
+        }
+        if (loadout.healing === 'meat_loot' || loadout.healing === 'meat') {
+            this.player.health = Math.min(this.player.maxHealth, this.player.health + 1.5 * deltaTime)
+        }
         if (loadout.combat === 'damage_boost') {
             this.player.loadoutDamageBonus += 5
         }
@@ -582,6 +612,18 @@ export class Game {
         if (loadout.combat === 'boost_potion') {
             this.player.loadoutDamageBonus += 5
             this.player.loadoutSpeedBonus += 15
+        }
+        if (loadout.combat === 'pistol') {
+            this.player.loadoutDamageBonus += 8
+        }
+        if (loadout.combat === 'rifle') {
+            this.player.loadoutDamageBonus += 15
+        }
+        if (loadout.combat === 'shotgun') {
+            this.player.loadoutDamageBonus += 25
+        }
+        if (loadout.combat === 'gun_drop' || loadout.combat === 'gun') {
+            this.player.loadoutDamageBonus += 3 // Small bonus from dropped guns
         }
         if (loadout.utility === 'loot_boost') {
             this.player.loadoutLootBonus += 0.2
@@ -594,6 +636,15 @@ export class Game {
         this.player.speed = (this.classes[this.player.class]?.stats.speed || 120) + this.player.loadoutSpeedBonus
     }
     startBattle() {
+        // Ensure a class is selected
+        if (!this.player.class) {
+            const classData = this.classes['noob']
+            this.player.class = 'noob'
+            this.player.classLevel = 0
+            Object.assign(this.player, classData.stats)
+            this.player.maxHealth = classData.stats.health
+            this.player.health = this.player.maxHealth
+        }
         this.isHome = false
         this.hideAllOverlays()
         this.resetBattlefield()
@@ -606,6 +657,17 @@ export class Game {
         if (homeScreen) homeScreen.style.display = 'flex'
         this.isHome = true
         this.hideHomeButton()
+        // Update class display
+        const currentClassName = document.getElementById('currentClassName')
+        if (currentClassName) {
+            const className = this.player.class || 'None (Select in Shop)'
+            currentClassName.textContent = className.replace(/_/g, ' ')
+        }
+        // Update gold display
+        const homeGoldValue = document.getElementById('homeGoldValue')
+        if (homeGoldValue) {
+            homeGoldValue.textContent = this.player.gold
+        }
     }
 
     hideAllOverlays() {
@@ -831,11 +893,30 @@ export class Game {
     resetBattlefield() {
         this.mobs = []
         this.bullets = []
+        this.bossBullets = []
         this.items = []
         this.kills = 0
         this.initializeBosses()
-        this.player.x = this.player.runStartX
-        this.player.y = this.player.runStartY
+        // Ensure player doesn't spawn near a boss
+        let validSpawn = false
+        let attempts = 0
+        while (!validSpawn && attempts < 50) {
+            this.player.x = this.player.runStartX + (Math.random() - 0.5) * 200
+            this.player.y = this.player.runStartY + (Math.random() - 0.5) * 200
+            validSpawn = true
+            for (const boss of this.bosses) {
+                const dist = Math.sqrt((this.player.x - boss.x) ** 2 + (this.player.y - boss.y) ** 2)
+                if (dist < 300) {
+                    validSpawn = false
+                    break
+                }
+            }
+            attempts++
+        }
+        if (!validSpawn) {
+            this.player.x = this.player.runStartX
+            this.player.y = this.player.runStartY
+        }
         this.player.health = this.player.maxHealth
         this.player.exp = 0
         this.player.level = 1
@@ -931,6 +1012,67 @@ export class Game {
                     this.gameOver()
                 }
             }
+        })
+    }
+
+    updateBosses(deltaTime) {
+        this.bosses.forEach(boss => {
+            if (boss.defeated) return
+
+            // Initialize boss cooldown if not present
+            if (!boss.shootCooldown) boss.shootCooldown = 0
+
+            const dx = this.player.x - boss.x
+            const dy = this.player.y - boss.y
+            const dist = Math.sqrt(dx * dx + dy * dy)
+
+            // Boss shoots periodically at player
+            boss.shootCooldown -= deltaTime
+            if (boss.shootCooldown <= 0 && dist < 800) {
+                // Shoot at player
+                const angle = Math.atan2(dy, dx)
+                const speed = 200
+                this.bossBullets.push({
+                    x: boss.x,
+                    y: boss.y,
+                    dx: Math.cos(angle) * speed,
+                    dy: Math.sin(angle) * speed,
+                    damage: 15,
+                    size: 8
+                })
+                boss.shootCooldown = 0.8 + Math.random() * 0.4 // Shoot every 0.8-1.2 seconds
+            }
+
+            // Boss takes damage from bullets
+            if (boss.hitFlash === undefined) boss.hitFlash = 0
+            if (boss.hitFlash > 0) boss.hitFlash -= deltaTime
+        })
+    }
+
+    updateBossBullets(deltaTime) {
+        this.bossBullets = this.bossBullets.filter(bullet => {
+            bullet.x += bullet.dx * deltaTime
+            bullet.y += bullet.dy * deltaTime
+
+            // Check collision with player
+            const dx = this.player.x - bullet.x
+            const dy = this.player.y - bullet.y
+            const dist = Math.sqrt(dx * dx + dy * dy)
+
+            if (dist < this.player.size / 2 + bullet.size && !this.player.invisible) {
+                // Damage reduction from armour piece
+                let damage = bullet.damage
+                if (this.player.loadout.utility === 'armour_piece') {
+                    damage *= 0.85 // 15% damage reduction
+                }
+                this.player.health -= damage
+                if (this.player.health <= 0) {
+                    this.gameOver()
+                }
+                return false // Remove bullet
+            }
+
+            return bullet.x > 0 && bullet.x < this.worldWidth && bullet.y > 0 && bullet.y < this.worldHeight
         })
     }
 
@@ -1033,15 +1175,15 @@ export class Game {
                         break
                     case 'medkit':
                         this.player.health = Math.min(this.player.maxHealth, this.player.health + 50)
-                        this.addInventoryItem({ id: 'medkit', name: 'Medkit', type: 'loot' })
+                        this.addInventoryItem({ id: 'medkit', name: 'Medkit Loot', type: 'loot', category: 'healing' })
                         break
                     case 'meat':
                         this.player.health = Math.min(this.player.maxHealth, this.player.health + 25)
-                        this.addInventoryItem({ id: 'meat', name: 'Meat', type: 'loot' })
+                        this.addInventoryItem({ id: 'meat', name: 'Meat Loot', type: 'loot', category: 'healing' })
                         break
                     case 'gun':
-                        this.player.damage += 5
-                        this.addInventoryItem({ id: 'gun', name: 'Dropped Gun', type: 'loot' })
+                        this.player.damage += 2
+                        this.addInventoryItem({ id: 'gun_drop', name: 'Dropped Gun', type: 'loot', category: 'combat' })
                         break
                 }
                 this.items.splice(index, 1)
@@ -1050,12 +1192,17 @@ export class Game {
     }
 
     updateCamera() {
-        this.camera.x = this.player.x - this.canvas.width / 2
-        this.camera.y = this.player.y - this.canvas.height / 2
+        // Compute camera in CSS pixel space (canvas logical size is scaled)
+        this.camera.x = this.player.x - this.renderer.width / 2
+        this.camera.y = this.player.y - this.renderer.height / 2
+
+        // Round camera to integer pixels to avoid sub-pixel jitter
+        this.camera.x = Math.floor(this.camera.x)
+        this.camera.y = Math.floor(this.camera.y)
 
         // Keep camera in bounds
-        this.camera.x = Math.max(0, Math.min(this.worldWidth - this.canvas.width, this.camera.x))
-        this.camera.y = Math.max(0, Math.min(this.worldHeight - this.canvas.height, this.camera.y))
+        this.camera.x = Math.max(0, Math.min(this.worldWidth - this.renderer.width, this.camera.x))
+        this.camera.y = Math.max(0, Math.min(this.worldHeight - this.renderer.height, this.camera.y))
     }
 
     updateUI() {
@@ -1101,6 +1248,9 @@ export class Game {
 
         // Draw bullets
         this.renderer.drawBullets(this.bullets, this.camera)
+
+        // Draw boss bullets
+        this.renderer.drawBossBullets(this.bossBullets, this.camera)
 
         // Draw player
         this.renderer.drawPlayer(this.player, this.camera, true)

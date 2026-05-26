@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .potato-card {
+    @apply bg-gradient-to-br from-[#141e3c] to-[#1e3264] border-2 border-potato-neon rounded-lg shadow-lg shadow-potato-neon/30;
+  }
+
+  .potato-btn {
+    @apply px-6 py-2 bg-potato-neon text-black font-bold rounded-lg hover:bg-[#00ff00] transition-all shadow-lg shadow-potato-neon/50;
+  }
+
+  .potato-input {
+    @apply w-full px-4 py-2 bg-[#0a0e27] border-2 border-potato-neon text-potato-neon rounded-lg focus:outline-none focus:shadow-lg focus:shadow-potato-neon/50;
+  }
+
+  .potato-label {
+    @apply text-potato-neon font-mono text-sm font-bold;
+  }
+}
+
+.confetti {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+}
