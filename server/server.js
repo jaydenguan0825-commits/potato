@@ -11,16 +11,21 @@ const io = new Server(server, {
     cors: { origin: '*' }
 })
 
-// Serve static files from parent directory (dist or root)
-app.use(express.static(path.join(__dirname, '..')))
-app.use(express.static(path.join(__dirname, '..', 'dist')))
-
-// Route handler for SPA - serve login.html for /login, index.html for others
+// Route handlers FIRST - before static file serving
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'login.html'))
 })
 
 app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'index.html'))
+})
+
+// Serve static files from parent directory and dist
+app.use(express.static(path.join(__dirname, '..')))
+app.use(express.static(path.join(__dirname, '..', 'dist')))
+
+// Fallback: serve index.html for any unmapped routes (SPA fallback)
+app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'index.html'))
 })
 
