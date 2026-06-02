@@ -2,9 +2,13 @@ import express from 'express'
 import http from 'http'
 import { Server } from 'socket.io'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const rootDir = path.resolve(__dirname, '..')
+const distDir = path.resolve(rootDir, 'dist')
+
 const app = express()
 const server = http.createServer(app)
 const io = new Server(server, {
@@ -12,17 +16,39 @@ const io = new Server(server, {
 })
 
 // Route handlers FIRST - before static file serving
+
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'login.html'))
+    // Try dist first, then root
+    let filePath = path.join(distDir, 'login.html')
+    if (!fs.existsSync(filePath)) {
+        filePath = path.join(rootDir, 'login.html')
+    }
+    console.log('Serving login from:', filePath)
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('Error serving login.html:', err)
+            res.status(404).send('login.html not found')
+        }
+    })
 })
 
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'index.html'))
+    // Try dist first, then root
+    let filePath = path.join(distDir, 'index.html')
+    if (!fs.existsSync(filePath)) {
+        filePath = path.join(rootDir, 'index.html')
+    }
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('Error serving index.html:', err)
+            res.status(404).send('index.html not found')
+        }
+    })
 })
 
-// Serve static files from parent directory and dist
-app.use(express.static(path.join(__dirname, '..')))
-app.use(express.static(path.join(__dirname, '..', 'dist')))
+// Serve static files from dist and root
+app.use(express.static(distDir))
+app.use(express.static(rootDir))
 
 // Fallback: serve index.html for any unmapped routes (SPA fallback)
 app.get('*', (req, res) => {
