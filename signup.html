@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Potato - Sign Up</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: radial-gradient(circle at top left, rgba(0, 255, 136, 0.12), transparent 35%),
+                radial-gradient(circle at bottom right, rgba(255, 255, 0, 0.16), transparent 30%),
+                linear-gradient(135deg, #0a0e27 0%, #141e3c 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .glow-text {
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.6), 0 0 20px rgba(0, 255, 136, 0.25);
+        }
+
+        .card {
+            background: rgba(10, 14, 39, 0.9);
+            border: 1px solid rgba(0, 255, 136, 0.22);
+            box-shadow: 0 0 60px rgba(0, 255, 136, 0.12);
+            backdrop-filter: blur(12px);
+        }
+
+        input::placeholder {
+            color: rgba(0, 255, 136, 0.45);
+        }
+    </style>
+</head>
+<body>
+    <div class="w-full max-w-md p-8 card rounded-3xl border-[1px]">
+        <div class="text-center mb-6">
+            <h1 class="text-4xl font-black text-[#00ff88] glow-text">Create Account</h1>
+            <p class="mt-2 text-sm text-gray-300">Join the potato squad — sign up and get in the game.</p>
+        </div>
+
+        <form id="signupForm" class="space-y-5">
+            <div>
+                <label class="block text-sm font-semibold text-[#00ff88] mb-2">Email</label>
+                <input
+                    type="email"
+                    id="email"
+                    placeholder="your@email.com"
+                    required
+                    class="w-full rounded-2xl border border-[#00ff88] bg-[#0b143a] px-4 py-3 text-[#ccffdd] focus:border-[#00ffa5] focus:outline-none focus:ring-2 focus:ring-[#00ff88]/30"
+                />
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-[#00ff88] mb-2">Username</label>
+                <input
+                    type="text"
+                    id="username"
+                    placeholder="Enter your username"
+                    required
+                    class="w-full rounded-2xl border border-[#00ff88] bg-[#0b143a] px-4 py-3 text-[#ccffdd] focus:border-[#00ffa5] focus:outline-none focus:ring-2 focus:ring-[#00ff88]/30"
+                />
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-[#00ff88] mb-2">Password</label>
+                <input
+                    type="password"
+                    id="password"
+                    placeholder="Create a password"
+                    required
+                    class="w-full rounded-2xl border border-[#00ff88] bg-[#0b143a] px-4 py-3 text-[#ccffdd] focus:border-[#00ffa5] focus:outline-none focus:ring-2 focus:ring-[#00ff88]/30"
+                />
+            </div>
+
+            <button
+                type="submit"
+                class="w-full rounded-2xl bg-[#00ff88] py-3 text-black font-bold transition-transform duration-200 hover:-translate-y-0.5 hover:bg-[#8cffb8]"
+            >
+                SIGN UP
+            </button>
+        </form>
+
+        <div class="mt-6 text-center text-sm text-gray-400">
+            Already have an account? <a href="login.html" class="text-[#00ff88] font-semibold hover:text-[#b7ffcc]">Login</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('signupForm').addEventListener('submit', function (event) {
+            event.preventDefault()
+            window.location.href = 'login.html'
+        })
+    </script>
+</body>
+</html>

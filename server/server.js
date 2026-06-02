@@ -11,14 +11,10 @@ const distDir = path.resolve(rootDir, 'dist')
 
 const app = express()
 const server = http.createServer(app)
-const io = new Server(server, {
-    cors: { origin: '*' }
-})
 
 // Route handlers FIRST - before static file serving
 
 app.get('/login', (req, res) => {
-    // Try dist first, then root
     let filePath = path.join(distDir, 'login.html')
     if (!fs.existsSync(filePath)) {
         filePath = path.join(rootDir, 'login.html')
@@ -28,6 +24,20 @@ app.get('/login', (req, res) => {
         if (err) {
             console.error('Error serving login.html:', err)
             res.status(404).send('login.html not found')
+        }
+    })
+})
+
+app.get('/signup', (req, res) => {
+    let filePath = path.join(distDir, 'signup.html')
+    if (!fs.existsSync(filePath)) {
+        filePath = path.join(rootDir, 'signup.html')
+    }
+    console.log('Serving signup from:', filePath)
+    res.sendFile(filePath, (err) => {
+        if (err) {
+            console.error('Error serving signup.html:', err)
+            res.status(404).send('signup.html not found')
         }
     })
 })

@@ -26,9 +26,11 @@ export class Game {
             abilityCooldown: 0,
             abilityActive: false,
             abilityDuration: 0,
-            invisible: false,
+            dashActive: false,
+            dashSpeedMultiplier: 1,
             attackBoost: 1,
             shield: false,
+            shieldActive: 0,
             shieldDuration: 0,
             flamethrower: false,
             flamethrowerDuration: 0,
@@ -78,7 +80,7 @@ export class Game {
             { id: 'bloodthirsty_killer', name: 'Class: Bloodthirsty Killer', cost: 2000, description: 'Legendary class with attack boost ability.', type: 'class', category: 'class' },
             { id: 'speedster', name: 'Class: Speedster', cost: 200, description: 'Rare speed-focused class with low HP.', type: 'class', category: 'class' },
             { id: 'flash', name: 'Class: Flash', cost: 800, description: 'Rare class with even higher speed.', type: 'class', category: 'class' },
-            { id: 'speed_demon', name: 'Class: Speed Demon', cost: 3000, description: 'Mythic class with invisibility ability.', type: 'class', category: 'class' },
+            { id: 'speed_demon', name: 'Class: Speed Demon', cost: 3000, description: 'Mythic class with dash ability.', type: 'class', category: 'class' },
             { id: 'mechanic', name: 'Class: Mechanic', cost: 500, description: 'Epic class with high loot chance.', type: 'class', category: 'class' },
             { id: 'genius', name: 'Class: Genius', cost: 2000, description: 'Legendary class with robot support.', type: 'class', category: 'class' },
             { id: 'tech_savvy', name: 'Class: Tech Savvy', cost: 5000, description: 'Godly class with powerful tech abilities.', type: 'class', category: 'class' }
@@ -158,7 +160,7 @@ export class Game {
                 cost: 3000,
                 stats: { health: 100, speed: 240, damage: 12, lootRate: 1.1 },
                 upgrades: [],
-                ability: 'invisibility'
+                ability: 'dash'
             },
             mechanic: {
                 rarity: 'epic',
@@ -337,8 +339,9 @@ export class Game {
         }
 
         // Update position
-        this.player.x += moveX * this.player.speed * deltaTime
-        this.player.y += moveY * this.player.speed * deltaTime
+        const speedMultiplier = this.player.dashActive ? this.player.dashSpeedMultiplier : 1
+        this.player.x += moveX * this.player.speed * speedMultiplier * deltaTime
+        this.player.y += moveY * this.player.speed * speedMultiplier * deltaTime
 
         // Keep in bounds
         this.player.x = Math.max(0, Math.min(this.worldWidth, this.player.x))
@@ -379,9 +382,10 @@ export class Game {
                 this.player.attackBoost = 1.3
                 this.player.abilityDuration = 10000
                 break
-            case 'invisibility':
-                this.player.invisible = true
-                this.player.abilityDuration = 5000
+            case 'dash':
+                this.player.dashActive = true
+                this.player.dashSpeedMultiplier = 3
+                this.player.abilityDuration = 500
                 break
             case 'tech_abilities':
                 // Random tech ability
@@ -396,10 +400,13 @@ export class Game {
         switch (ability) {
             case 'flamethrower':
                 this.player.flamethrower = true
+                this.player.flamethrowerDuration = 10000
                 this.player.abilityDuration = 10000
                 break
             case 'shield':
                 this.player.shield = true
+                this.player.shieldActive = 20000
+                this.player.shieldDuration = 20000
                 this.player.abilityDuration = 20000
                 break
             case 'mega_robot':
@@ -408,8 +415,10 @@ export class Game {
                     y: this.player.y,
                     health: 500,
                     maxHealth: 500,
-                    size: 30
+                    size: 30,
+                    target: null
                 }
+                this.player.megaRobotDuration = 30000
                 this.player.abilityDuration = 30000
                 break
         }
@@ -418,6 +427,15 @@ export class Game {
     updateAbilities(deltaTime) {
         if (this.player.abilityCooldown > 0) {
             this.player.abilityCooldown -= deltaTime * 1000
+            if (this.player.abilityCooldown < 0) this.player.abilityCooldown = 0
+        }
+
+        if (this.player.shieldActive > 0) {
+            this.player.shieldActive -= deltaTime * 1000
+            if (this.player.shieldActive <= 0) {
+                this.player.shieldActive = 0
+                this.player.shield = false
+            }
         }
 
         if (this.player.abilityDuration > 0) {
@@ -426,16 +444,28 @@ export class Game {
                 this.deactivateAbility()
             }
         }
+
+        if (this.player.flamethrower) {
+            this.applyFlamethrower(deltaTime)
+        }
+
+        if (this.player.megaRobot) {
+            this.updateMegaRobot(deltaTime)
+        }
     }
 
     deactivateAbility() {
         this.player.abilityActive = false
         this.player.attackBoost = 1
-        this.player.invisible = false
+        this.player.dashActive = false
+        this.player.dashSpeedMultiplier = 1
         this.player.shield = false
+        this.player.shieldActive = 0
         this.player.flamethrower = false
+        this.player.flamethrowerDuration = 0
         if (this.player.megaRobot) {
             this.player.megaRobot = null
+            this.player.megaRobotDuration = 0
         }
     }
 
@@ -791,6 +821,76 @@ export class Game {
         return key.length === 1 ? key.toUpperCase() : key[0].toUpperCase() + key.slice(1)
     }
 
+    getAbilityLabel(ability) {
+        const labels = {
+            attack_boost: 'Attack Boost',
+            dash: 'Dash',
+            tech_abilities: 'Tech Ability'
+        }
+        return labels[ability] || ability.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    }
+
+    applyFlamethrower(deltaTime) {
+        const range = 90
+        const damageRate = 35
+
+        for (let i = this.mobs.length - 1; i >= 0; i--) {
+            const mob = this.mobs[i]
+            const dist = Math.hypot(this.player.x - mob.x, this.player.y - mob.y)
+            if (dist < range) {
+                mob.health -= damageRate * deltaTime
+                if (mob.health <= 0) {
+                    this.killMob(mob)
+                    this.mobs.splice(i, 1)
+                }
+            }
+        }
+
+        this.bosses.forEach(boss => {
+            if (boss.defeated) return
+            const dist = Math.hypot(this.player.x - boss.x, this.player.y - boss.y)
+            if (dist < range) {
+                boss.health -= 20 * deltaTime
+                if (boss.health <= 0) {
+                    this.defeatBoss(boss)
+                }
+            }
+        })
+    }
+
+    updateMegaRobot(deltaTime) {
+        const robot = this.player.megaRobot
+        if (!robot) return
+
+        const nearestMob = this.mobs.reduce((closest, mob) => {
+            const dist = Math.hypot(robot.x - mob.x, robot.y - mob.y)
+            if (!closest || dist < closest.dist) return { mob, dist }
+            return closest
+        }, null)
+
+        if (nearestMob && nearestMob.dist > 0) {
+            const dx = nearestMob.mob.x - robot.x
+            const dy = nearestMob.mob.y - robot.y
+            const dist = Math.hypot(dx, dy)
+            const speed = 160
+            robot.x += (dx / dist) * speed * deltaTime
+            robot.y += (dy / dist) * speed * deltaTime
+
+            if (dist < robot.size / 2 + nearestMob.mob.size / 2) {
+                nearestMob.mob.health -= 28 * deltaTime
+                if (nearestMob.mob.health <= 0) {
+                    this.killMob(nearestMob.mob)
+                    this.mobs = this.mobs.filter(m => m !== nearestMob.mob)
+                }
+            }
+        } else {
+            const targetX = this.player.x + 50
+            const targetY = this.player.y
+            robot.x += (targetX - robot.x) * 5 * deltaTime
+            robot.y += (targetY - robot.y) * 5 * deltaTime
+        }
+    }
+
     renderInventory() {
         const inventoryContents = document.getElementById('inventoryContents')
         if (!inventoryContents) return
@@ -921,7 +1021,8 @@ export class Game {
         this.player.exp = 0
         this.player.level = 1
         this.player.expToNext = 100
-        this.player.invisible = false
+        this.player.dashActive = false
+        this.player.dashSpeedMultiplier = 1
         this.player.abilityActive = false
         this.player.abilityDuration = 0
         this.player.abilityCooldown = 0
@@ -1005,9 +1106,13 @@ export class Game {
             mob.x = Math.max(0, Math.min(this.worldWidth, mob.x))
             mob.y = Math.max(0, Math.min(this.worldHeight, mob.y))
 
-            // Attack player if close
-            if (dist < 30 && !this.player.invisible) {
-                this.player.health -= mob.damage * deltaTime
+            // Attack player if close and visible
+            if (dist < 30) {
+                let damage = mob.damage
+                if (this.player.shieldActive > 0) {
+                    damage *= 0.5
+                }
+                this.player.health -= damage * deltaTime
                 if (this.player.health <= 0) {
                     this.gameOver()
                 }
@@ -1059,11 +1164,13 @@ export class Game {
             const dy = this.player.y - bullet.y
             const dist = Math.sqrt(dx * dx + dy * dy)
 
-            if (dist < this.player.size / 2 + bullet.size && !this.player.invisible) {
-                // Damage reduction from armour piece
+            if (dist < this.player.size / 2 + bullet.size) {
                 let damage = bullet.damage
                 if (this.player.loadout.utility === 'armour_piece') {
                     damage *= 0.85 // 15% damage reduction
+                }
+                if (this.player.shieldActive > 0) {
+                    damage *= 0.5
                 }
                 this.player.health -= damage
                 if (this.player.health <= 0) {
@@ -1213,17 +1320,32 @@ export class Game {
         document.getElementById('mobCount').textContent = this.mobs.length
         document.getElementById('killCount').textContent = this.kills
 
-        // Update home gold display
         const homeGoldEl = document.getElementById('homeGoldValue')
         if (homeGoldEl) homeGoldEl.textContent = this.player.gold
 
-        // Update ability display
+        const abilityDisplay = document.getElementById('abilityDisplay')
         const abilityEl = document.getElementById('dashAbility')
-        if (this.player.abilityCooldown > 0) {
-            abilityEl.textContent = `ABILITY: ${Math.ceil(this.player.abilityCooldown / 1000)}s`
+        const classData = this.player.class ? this.classes[this.player.class] : null
+        const hasAbility = classData && classData.ability
+
+        if (!abilityDisplay || !abilityEl) return
+
+        if (!hasAbility) {
+            abilityDisplay.style.display = 'none'
+            return
+        }
+
+        abilityDisplay.style.display = 'block'
+        const abilityLabel = this.getAbilityLabel(classData.ability)
+
+        if (this.player.abilityActive && this.player.abilityDuration > 0) {
+            abilityEl.textContent = `${abilityLabel} [${this.formatKeyLabel(this.controls.ability)}]: Active ${Math.ceil(this.player.abilityDuration / 1000)}s`
+            abilityEl.className = 'ability ready'
+        } else if (this.player.abilityCooldown > 0) {
+            abilityEl.textContent = `${abilityLabel} [${this.formatKeyLabel(this.controls.ability)}]: ${Math.ceil(this.player.abilityCooldown / 1000)}s`
             abilityEl.className = 'ability cooldown'
         } else {
-            abilityEl.textContent = `ABILITY [${this.formatKeyLabel(this.controls.ability)}]: Ready`
+            abilityEl.textContent = `${abilityLabel} [${this.formatKeyLabel(this.controls.ability)}]: Ready`
             abilityEl.className = 'ability ready'
         }
     }
@@ -1280,11 +1402,12 @@ export class Game {
         this.player.health = this.player.maxHealth
         this.player.x = 1000 // Reset to center-ish spawn point
         this.player.y = 1000
-        this.player.invisible = true // Temporary invincibility
         
         // Clear any active abilities
         this.player.abilityActive = false
         this.player.abilityDuration = 0
+        this.player.dashActive = false
+        this.player.dashSpeedMultiplier = 1
         this.player.shieldActive = false
         this.player.shieldDuration = 0
         this.player.flamethrower = false
@@ -1292,11 +1415,6 @@ export class Game {
         this.player.megaRobot = null
         this.player.megaRobotDuration = 0
         this.player.attackBoost = 1
-        
-        // Remove invincibility after 3 seconds
-        setTimeout(() => {
-            this.player.invisible = false
-        }, 3000)
     }
 
     winGame() {

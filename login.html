@@ -133,23 +133,9 @@
                     ENTER
                 </button>
             </form>
-        </div>
-
-        <!-- Welcome message (hidden by default) -->
-        <div id="welcomeContainer" class="hidden text-center mt-8">
-            <div class="neon-border rounded-lg p-8 bg-gradient-to-br from-[#141e3c] to-[#1e3264]">
-                <p class="text-3xl font-bold welcome-message glow" style="color: #ffff00;">
-                    hi <span id="userDisplay" style="color: #00ff88;"></span>
-                </p>
-                <p class="text-gray-400 mt-4">welcome to the game!</p>
-                <button
-                    onclick="document.location.href='index.html'"
-                    class="submit-btn mt-6 px-6 py-2 font-bold text-black rounded-lg transition-all"
-                    style="background-color: #00ff88; box-shadow: 0 0 20px rgba(0, 255, 136, 0.5); display: inline-block;"
-                >
-                    PLAY
-                </button>
-            </div>
+            <p class="text-center text-sm text-gray-400 mt-4">
+                Don't have an account? <a href="signup.html" class="text-[#00ff88] hover:text-[#b7ffcc]">Sign up</a>
+            </p>
         </div>
 
         <!-- Footer -->
@@ -159,49 +145,9 @@
     </div>
 
     <script>
-        // Create confetti pieces
-        function createConfetti() {
-            const confettiContainer = document.body;
-            const colors = ['#00ff88', '#ffff00', '#ff00ff', '#00ffff', '#ff6600'];
-            const confettiCount = 50;
-
-            for (let i = 0; i < confettiCount; i++) {
-                const confetti = document.createElement('div');
-                confetti.className = 'confetti';
-
-                const size = Math.random() * 10 + 5;
-                const left = Math.random() * 100;
-                const delay = Math.random() * 0.3;
-                const color = colors[Math.floor(Math.random() * colors.length)];
-
-                confetti.style.width = size + 'px';
-                confetti.style.height = size + 'px';
-                confetti.style.left = left + '%';
-                confetti.style.top = '-10px';
-                confetti.style.backgroundColor = color;
-                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
-                confetti.style.animationDelay = delay + 's';
-
-                confettiContainer.appendChild(confetti);
-
-                // Remove confetti after animation
-                setTimeout(() => confetti.remove(), 3000 + delay * 1000);
-            }
-        }
-
-        // Handle form submission
         document.getElementById('loginFormElement').addEventListener('submit', function (e) {
             e.preventDefault();
-
-            const username = document.getElementById('username').value;
-
-            // Hide login form and show welcome message
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('welcomeContainer').classList.remove('hidden');
-            document.getElementById('userDisplay').textContent = username;
-
-            // Trigger confetti animation
-            createConfetti();
+            window.location.href = 'index.html';
         });
     </script>
 </body>
