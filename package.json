@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
-    "server": "node server/server.js"
+    "preview": "npm run build && wrangler dev",
+    "server": "node server/server.js",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.0",
@@ -16,9 +17,11 @@
     "socket.io-client": "^4.7.2"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.39.2",
     "autoprefixer": "^10.5.0",
     "postcss": "^8.5.15",
     "tailwindcss": "^4.3.0",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "wrangler": "^4.97.0"
   }
 }
