@@ -147,6 +147,7 @@
     <script>
         document.getElementById('loginFormElement').addEventListener('submit', function (e) {
             e.preventDefault();
+            localStorage.setItem('potatoHasAccount', 'true')
             window.location.href = 'index.html';
         });
     </script>

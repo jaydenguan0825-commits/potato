@@ -1,0 +1,8 @@
+name = "potato-worker"
+main = "worker/index.js"
+
+[[d1_databases]]
+
+binding = "DB"
+database_name = "potato-db"
+database_id = "b13f3d83-8c4e-43cd-8cfc-dd9a5b93a200"

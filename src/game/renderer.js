@@ -97,24 +97,34 @@ export class Renderer {
         }
     }
 
-    drawWaterTexture(ctx, x, y, size) {
-        ctx.fillStyle = '#1e5a7c'
+    drawSnowTexture(ctx, x, y, size) {
+        ctx.fillStyle = '#eaf6f6'
         ctx.fillRect(x, y, size, size)
 
-        // Static ripple-like lines based on deterministic noise
-        ctx.strokeStyle = 'rgba(173, 216, 230, 0.35)'
-        ctx.lineWidth = 1
-
-        for (let i = 0; i < 4; i++) {
-            const baseOff = this.getTileNoise(x, y, i) * 4
-            const yOffset = y + i * 12 + 6 + baseOff
+        const variation = this.getTileNoise(x, y, 2)
+        if (variation > 0.5) {
+            ctx.fillStyle = '#ffffff'
             ctx.beginPath()
-            ctx.moveTo(x, yOffset)
-            for (let j = 0; j <= size; j += 6) {
-                const noise = (this.getTileNoise(x + j, y, i + j) - 0.5) * 4
-                ctx.lineTo(x + j, yOffset + noise)
-            }
+            ctx.moveTo(x, y + size)
+            ctx.lineTo(x + size / 2, y + size / 3)
+            ctx.lineTo(x + size, y + size)
+            ctx.closePath()
+            ctx.fill()
+
+            ctx.strokeStyle = '#d0e8e8'
+            ctx.lineWidth = 1.5
+            ctx.beginPath()
+            ctx.moveTo(x + size / 2, y + size / 3)
+            ctx.lineTo(x + size / 2, y + size)
             ctx.stroke()
+        }
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+        for (let i = 0; i < 3; i++) {
+            const seed = this.getTileNoise(x, y, i + 10)
+            const px = x + seed * (size - 10) + 5
+            const py = y + this.getTileNoise(x, y, i + 15) * (size - 10) + 5
+            ctx.fillRect(Math.round(px), Math.round(py), 2, 2)
         }
     }
 
@@ -179,7 +189,7 @@ export class Renderer {
         }
         
         if (x < cx && y < cy) {
-            return { color: '#1e5a7c', texture: this.drawWaterTexture.bind(this) }
+            return { color: '#eaf6f6', texture: this.drawSnowTexture.bind(this) }
         }
         if (x > cx && y < cy) {
             return { color: '#a9441f', texture: this.drawVolcanoTexture.bind(this) }
@@ -194,6 +204,24 @@ export class Renderer {
         const ctx = this.ctx
         const screenX = Math.round(player.x - camera.x)
         const screenY = Math.round(player.y - camera.y)
+
+        // Draw flamethrower cone
+        if (player.flamethrower) {
+            ctx.save()
+            ctx.translate(screenX, screenY)
+            ctx.rotate(player.direction)
+            const grad = ctx.createRadialGradient(0, 0, 10, 80, 0, 90)
+            grad.addColorStop(0, 'rgba(255, 69, 0, 0.85)')
+            grad.addColorStop(0.5, 'rgba(255, 140, 0, 0.55)')
+            grad.addColorStop(1, 'rgba(255, 255, 0, 0)')
+            ctx.fillStyle = grad
+            ctx.beginPath()
+            ctx.moveTo(0, 0)
+            ctx.arc(0, 0, 95, -0.45, 0.45)
+            ctx.closePath()
+            ctx.fill()
+            ctx.restore()
+        }
 
         ctx.save()
         // Shadow
@@ -309,6 +337,21 @@ export class Renderer {
         ctx.moveTo(screenX, muzzleY)
         ctx.lineTo(endX, endY)
         ctx.stroke()
+
+        // Shield Bubble Visual
+        if (player.shieldActive > 0 || (player.shieldHp && player.shieldHp > 0)) {
+            ctx.save()
+            ctx.strokeStyle = '#00e6ff'
+            ctx.lineWidth = 3
+            ctx.shadowColor = '#00e6ff'
+            ctx.shadowBlur = 12
+            ctx.fillStyle = 'rgba(0, 230, 255, 0.07)'
+            ctx.beginPath()
+            ctx.arc(screenX, screenY, player.size * 0.9, 0, Math.PI * 2)
+            ctx.fill()
+            ctx.stroke()
+            ctx.restore()
+        }
     }
 
     drawMobs(mobs, camera) {
@@ -454,51 +497,186 @@ export class Renderer {
         items.forEach((item, idx) => {
             const screenX = Math.round(item.x - camera.x)
             const screenY = Math.round(item.y - camera.y)
-            const bob = 0
 
-            // Item
-            if (item.type === 'medkit') {
-                ctx.fillStyle = '#e74c3c'
-                ctx.fillRect(Math.round(screenX - 8), Math.round(screenY + bob - 8), 16, 16)
-                ctx.fillStyle = 'white'
-                ctx.fillRect(screenX - 2, screenY + bob - 6, 4, 12)
-                ctx.fillRect(screenX - 6, screenY + bob - 2, 12, 4)
-            } else {
-                ctx.fillStyle = item.type === 'money' ? '#f1c40f' : '#2ecc71'
+            ctx.save()
+            // Shadow
+            ctx.shadowColor = 'rgba(0,0,0,0.15)'
+            ctx.shadowBlur = 4
+            ctx.shadowOffsetY = 2
+
+            if (item.type === 'xp') {
+                // Cyan glowing diamond gem
+                ctx.fillStyle = '#00ffff'
                 ctx.beginPath()
-                ctx.arc(screenX, screenY + bob, 8, 0, Math.PI * 2)
+                ctx.moveTo(screenX, screenY - 8)
+                ctx.lineTo(screenX + 6, screenY)
+                ctx.lineTo(screenX, screenY + 8)
+                ctx.lineTo(screenX - 6, screenY)
+                ctx.closePath()
                 ctx.fill()
-            }
+                
+                // Highlight
+                ctx.fillStyle = 'rgba(255,255,255,0.6)'
+                ctx.beginPath()
+                ctx.moveTo(screenX, screenY - 8)
+                ctx.lineTo(screenX + 3, screenY - 2)
+                ctx.lineTo(screenX, screenY)
+                ctx.lineTo(screenX - 3, screenY - 2)
+                ctx.closePath()
+                ctx.fill()
 
-            // Outline
-            ctx.strokeStyle = '#ffffff'
-            ctx.lineWidth = 1
-            ctx.stroke()
+                ctx.strokeStyle = '#ffffff'
+                ctx.lineWidth = 1
+                ctx.stroke()
+            } else if (item.type === 'gold') {
+                // Gold coin
+                ctx.fillStyle = '#ffcc00'
+                ctx.beginPath()
+                ctx.arc(screenX, screenY, 8, 0, Math.PI * 2)
+                ctx.fill()
+
+                ctx.strokeStyle = '#d4a373'
+                ctx.lineWidth = 1.5
+                ctx.stroke()
+
+                // Inner ring
+                ctx.strokeStyle = '#ffd166'
+                ctx.lineWidth = 1
+                ctx.beginPath()
+                ctx.arc(screenX, screenY, 5, 0, Math.PI * 2)
+                ctx.stroke()
+            } else if (item.type === 'medkit') {
+                // Red box with white cross
+                ctx.fillStyle = '#e74c3c'
+                ctx.fillRect(screenX - 8, screenY - 8, 16, 16)
+                
+                ctx.fillStyle = '#ffffff'
+                ctx.fillRect(screenX - 2, screenY - 6, 4, 12)
+                ctx.fillRect(screenX - 6, screenY - 2, 12, 4)
+
+                ctx.strokeStyle = '#c0392b'
+                ctx.lineWidth = 1.5
+                ctx.strokeRect(screenX - 8, screenY - 8, 16, 16)
+            } else if (item.type === 'meat') {
+                // Cartoon meat drumstick
+                ctx.fillStyle = '#ffffff' // Bone
+                ctx.fillRect(screenX - 8, screenY - 2, 8, 4)
+                ctx.beginPath()
+                ctx.arc(screenX - 8, screenY - 2, 2.5, 0, Math.PI * 2)
+                ctx.arc(screenX - 8, screenY + 2, 2.5, 0, Math.PI * 2)
+                ctx.fill()
+
+                ctx.fillStyle = '#b5651d' // Meat oval
+                ctx.beginPath()
+                ctx.ellipse(screenX + 1, screenY, 8, 6, 0, 0, Math.PI * 2)
+                ctx.fill()
+                
+                ctx.strokeStyle = '#8b4513'
+                ctx.lineWidth = 1.5
+                ctx.stroke()
+            } else if (item.type === 'gun') {
+                // Dark grey pistol shape
+                ctx.fillStyle = '#555555'
+                ctx.fillRect(screenX - 6, screenY - 4, 12, 5) // Barrel
+                ctx.fillRect(screenX - 4, screenY - 1, 4, 8)  // Grip
+                ctx.fillStyle = '#ffcc00'
+                ctx.fillRect(screenX + 5, screenY - 3, 2, 2)  // Muzzle spark/tip
+                
+                ctx.strokeStyle = '#222222'
+                ctx.lineWidth = 1
+                ctx.strokeRect(screenX - 6, screenY - 4, 12, 5)
+            } else if (item.type === 'armor_scrap') {
+                // Shiny metallic blue shield shard
+                ctx.fillStyle = '#00bfff'
+                ctx.beginPath()
+                ctx.moveTo(screenX - 6, screenY - 8)
+                ctx.lineTo(screenX + 6, screenY - 8)
+                ctx.lineTo(screenX + 4, screenY + 2)
+                ctx.lineTo(screenX, screenY + 8)
+                ctx.lineTo(screenX - 4, screenY + 2)
+                ctx.closePath()
+                ctx.fill()
+
+                ctx.strokeStyle = '#ffffff'
+                ctx.lineWidth = 1
+                ctx.stroke()
+            } else {
+                // Fallback circle
+                ctx.fillStyle = '#2ecc71'
+                ctx.beginPath()
+                ctx.arc(screenX, screenY, 8, 0, Math.PI * 2)
+                ctx.fill()
+                ctx.strokeStyle = '#ffffff'
+                ctx.lineWidth = 1
+                ctx.stroke()
+            }
+            ctx.restore()
         })
     }
 
-    drawMegaRobot(robot, camera) {
+    drawAllies(allies, camera) {
+        if (!allies) return
         const ctx = this.ctx
-        const screenX = Math.round(robot.x - camera.x)
-        const screenY = Math.round(robot.y - camera.y)
+        allies.forEach(ally => {
+            const screenX = Math.round(ally.x - camera.x)
+            const screenY = Math.round(ally.y - camera.y)
 
-        // Robot body
-        ctx.fillStyle = '#666666'
-        ctx.fillRect(Math.round(screenX - robot.size / 2), Math.round(screenY - robot.size / 2), robot.size, robot.size)
+            if (ally.type === 'mega_robot' || ally.type === 'mini_robot') {
+                const isMega = ally.type === 'mega_robot'
+                // Body
+                ctx.fillStyle = isMega ? '#4e5a6b' : '#6b7a8c'
+                ctx.fillRect(screenX - ally.size / 2, screenY - ally.size / 2, ally.size, ally.size)
+                
+                // Visor/Eye
+                ctx.fillStyle = isMega ? '#ff3b30' : '#ffd60a'
+                if (isMega) {
+                    ctx.fillRect(screenX - ally.size * 0.35, screenY - ally.size * 0.25, ally.size * 0.7, 5)
+                } else {
+                    ctx.beginPath()
+                    ctx.arc(screenX, screenY - 2, 4, 0, Math.PI * 2)
+                    ctx.fill()
+                }
 
-        // Robot outline
-        ctx.strokeStyle = '#ffffff'
-        ctx.lineWidth = 2
-        ctx.strokeRect(Math.round(screenX - robot.size / 2), Math.round(screenY - robot.size / 2), robot.size, robot.size)
+                // Metallic shine
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.15)'
+                ctx.fillRect(screenX - ally.size / 2, screenY - ally.size / 2, ally.size, ally.size / 4)
 
-        // Health bar
-        const barWidth = robot.size
-        const healthPercent = robot.health / robot.maxHealth
-        
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
-        ctx.fillRect(Math.round(screenX - barWidth / 2), Math.round(screenY - robot.size / 2 - 10), barWidth, 3)
-        
-        ctx.fillStyle = '#00ff00'
-        ctx.fillRect(Math.round(screenX - barWidth / 2), Math.round(screenY - robot.size / 2 - 10), Math.round(barWidth * healthPercent), 3)
+                // Outline
+                ctx.strokeStyle = isMega ? '#ff3b30' : '#ffd60a'
+                ctx.lineWidth = isMega ? 3 : 2
+                ctx.strokeRect(screenX - ally.size / 2, screenY - ally.size / 2, ally.size, ally.size)
+
+                // Health bar
+                const barWidth = ally.size
+                const healthPercent = Math.max(0, ally.health / ally.maxHealth)
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'
+                ctx.fillRect(screenX - barWidth / 2, screenY - ally.size / 2 - 10, barWidth, 3)
+                ctx.fillStyle = '#00ff88'
+                ctx.fillRect(screenX - barWidth / 2, screenY - ally.size / 2 - 10, barWidth * healthPercent, 3)
+            } else if (ally.type === 'drone') {
+                // Outer glow ring
+                ctx.strokeStyle = 'rgba(0, 255, 255, 0.3)'
+                ctx.lineWidth = 4
+                ctx.beginPath()
+                ctx.arc(screenX, screenY, ally.size / 2 + 3, 0, Math.PI * 2)
+                ctx.stroke()
+
+                // Core orb
+                ctx.fillStyle = '#00ffff'
+                ctx.beginPath()
+                ctx.arc(screenX, screenY, ally.size / 2, 0, Math.PI * 2)
+                ctx.fill()
+
+                ctx.strokeStyle = '#ffffff'
+                ctx.lineWidth = 1.5
+                ctx.stroke()
+
+                // Center glowing dot
+                ctx.fillStyle = '#ffffff'
+                ctx.beginPath()
+                ctx.arc(screenX, screenY, 2, 0, Math.PI * 2)
+                ctx.fill()
+            }
+        })
     }
 }

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -57,6 +57,24 @@
             gap: 15px;
         }
 
+        #healthBarContainer {
+            position: relative;
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        #healthBarFill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #ff3864, #ffda75);
+            transition: width 0.2s ease;
+        }
+
         .ui-label {
             color: #00ff88;
         }
@@ -65,6 +83,13 @@
             color: #ffff00;
             font-weight: bold;
             text-shadow: 0 0 10px rgba(255, 255, 0, 0.5);
+        }
+
+        .ui-note {
+            margin-top: 10px;
+            color: #cbd5e1;
+            font-size: 12px;
+            letter-spacing: 0.02em;
         }
 
         #goldDisplay {
@@ -144,15 +169,15 @@
         <div id="ui">
             <div class="ui-row">
                 <span class="ui-label">HP:</span>
-                <span class="ui-value" id="healthValue">100/100</span>
+                <span class="ui-value" id="healthValue">♥♥♥</span>
             </div>
-            <div class="ui-row">
-                <span class="ui-label">LVL:</span>
-                <span class="ui-value" id="levelValue">1</span>
+            <div id="healthBarContainer">
+                <div id="healthBarFill"></div>
             </div>
+            <div class="ui-note">Loot consumables are stored in inventory and activated with Q.</div>
             <div class="ui-row">
                 <span class="ui-label">EXP:</span>
-                <span class="ui-value" id="expValue">0/100</span>
+                <span class="ui-value" id="expValue">0/400</span>
             </div>
         </div>
         <div id="goldDisplay">
@@ -170,7 +195,10 @@
     <!-- Home Screen Overlay -->
     <div id="homeScreen" style="display: flex; position: fixed; inset: 0; justify-content: center; align-items: center; background: rgba(4, 8, 22, 0.95); z-index: 1000;">
         <div style="background: linear-gradient(135deg, #101828, #122147); border: 3px solid #00ff88; border-radius: 20px; padding: 30px; width: min(520px, 90%); color: #d4f7d7; font-family: 'Courier New', monospace; box-shadow: 0 0 30px rgba(0, 255, 136, 0.25);">
-            <h1 style="margin-bottom: 16px; font-size: 42px; text-align: center; color: #7cffb2;">Potato</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px;">
+                <h1 style="font-size: 42px; color: #7cffb2; margin: 0;">Potato</h1>
+                <button id="homeLoginButton" onclick="window.location.href='login.html'" style="padding: 12px 18px; font-size: 14px; cursor: pointer; background: #4b4bff; border: none; color: white; border-radius: 12px; font-weight: bold;">LOGIN</button>
+            </div>
             <div style="text-align: center; margin-bottom: 20px; padding: 10px; background: rgba(255, 204, 0, 0.1); border: 1px solid #ffcc00; border-radius: 8px;">
                 <span style="color: #ffcc00; font-size: 18px; font-weight: bold;">Gold: <span id="homeGoldValue">0</span></span>
             </div>
@@ -208,6 +236,26 @@
     <div id="settingsMenu" style="display: none; position: fixed; inset: 0; background: rgba(4, 10, 22, 0.96); z-index: 1002; padding: 30px; overflow-y: auto;">
         <div style="max-width: 840px; margin: 0 auto; color: #d8f3ff; font-family: 'Courier New', monospace;">
             <h2 style="text-align: center; color: #7cffb2; margin-bottom: 20px;">⚙️ SETTINGS</h2>
+            <div style="margin-bottom: 20px; padding: 16px; background: rgba(0, 255, 136, 0.08); border: 1px solid rgba(0, 255, 136, 0.18); border-radius: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <span style="font-weight: bold; color: #d8f3ff;">Lobby Music Volume</span>
+                    <span id="lobbyVolumeValue" style="color: #7cffb2;">70%</span>
+                </div>
+                <input id="lobbyVolumeSlider" type="range" min="0" max="100" value="70" style="width: 100%;" />
+                <div style="display: flex; justify-content: space-between; color: #b8f7bf; font-size: 13px; margin-top: 8px;">
+                    <span>Quiet</span>
+                    <span>Loud</span>
+                </div>
+            </div>
+            <div style="margin-bottom: 20px; padding: 16px; background: rgba(0, 255, 136, 0.08); border: 1px solid rgba(0, 255, 136, 0.18); border-radius: 14px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: bold; color: #d8f3ff;">Movement Mode</span>
+                <button id="movementModeToggle" onclick="window.game.toggleMovementMode()" style="padding: 10px 18px; background: #00ff88; border: none; color: #061c10; border-radius: 10px; font-weight: bold; cursor: pointer;">Keyboard (WASD)</button>
+            </div>
+            <div style="margin-bottom: 20px; padding: 16px; background: rgba(255, 63, 63, 0.08); border: 1px solid rgba(255, 63, 63, 0.18); border-radius: 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                <span style="font-weight: bold; color: #d8f3ff; white-space: nowrap;">Admin Code</span>
+                <input id="adminCodeInput" type="password" placeholder="Enter code" style="padding: 8px 12px; background: #0a0e27; border: 1px solid #ff3f3f; color: #ff3f3f; border-radius: 8px; font-family: monospace; outline: none; width: 150px;" />
+                <button onclick="window.game.submitAdminCode()" style="padding: 8px 14px; background: #ff3f3f; border: none; color: white; border-radius: 8px; font-weight: bold; cursor: pointer;">ENTER</button>
+            </div>
             <div id="controlsSettings" style="display: grid; gap: 12px; margin-bottom: 18px;"></div>
             <div id="bindingHint" style="margin-bottom: 18px; color: #d4f7d7; font-size: 14px;">Click a control button to rebind it.</div>
             <button onclick="window.game.saveControlSettings()" style="margin-top: 10px; width: 100%; padding: 12px; background: #00ff88; color: #061c10; border: none; cursor: pointer; border-radius: 10px; font-weight: bold;">SAVE CONTROLS</button>
@@ -226,6 +274,80 @@
 
     <button id="homeButton" onclick="window.game.confirmReturnHome()" style="display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, #ff6b6b, #ff3f5e); color: white; padding: 12px 20px; border-radius: 12px; border: none; box-shadow: 0 0 20px rgba(255, 107, 107, 0.35); cursor: pointer; z-index: 100; font-family: 'Courier New', monospace; font-weight: bold;">BACK TO HOME</button>
 
+    <audio id="homeMusicPlayer" preload="auto" autoplay loop src="./assets/lobby-music.mp3"></audio>
+
+    <script>
+        const hasAccount = localStorage.getItem('potatoHasAccount') === 'true'
+        const loginButton = document.getElementById('homeLoginButton')
+        if (loginButton && hasAccount) {
+            loginButton.style.display = 'none'
+        }
+
+        const musicPlayer = document.getElementById('homeMusicPlayer')
+        const homeScreen = document.getElementById('homeScreen')
+        const volumeSlider = document.getElementById('lobbyVolumeSlider')
+        const volumeValue = document.getElementById('lobbyVolumeValue')
+
+        const savedVolume = parseFloat(localStorage.getItem('lobbyMusicVolume'))
+        const activeVolume = Number.isFinite(savedVolume) ? Math.min(Math.max(savedVolume, 0), 1) : 1.0
+        if (musicPlayer) {
+            musicPlayer.volume = activeVolume
+            musicPlayer.loop = true
+        }
+
+        if (volumeSlider && volumeValue) {
+            const value = Math.round(activeVolume * 100)
+            volumeSlider.value = value
+            volumeValue.textContent = `${value}%`
+            volumeSlider.addEventListener('input', () => {
+                const newVolume = Number(volumeSlider.value) / 100
+                if (musicPlayer) {
+                    musicPlayer.volume = newVolume
+                }
+                volumeValue.textContent = `${volumeSlider.value}%`
+                localStorage.setItem('lobbyMusicVolume', String(newVolume))
+            })
+        }
+
+        const tryAutoplay = async () => {
+            if (!musicPlayer || !homeScreen) return
+            if (homeScreen.style.display !== 'none') {
+                try {
+                    await musicPlayer.play()
+                } catch (err) {
+                    console.warn('Lobby autoplay blocked:', err)
+                }
+            }
+        }
+
+        const patchGameMusic = () => {
+            if (!window.game || !musicPlayer) return
+            const originalStartBattle = window.game.startBattle.bind(window.game)
+            window.game.startBattle = function (...args) {
+                if (musicPlayer) {
+                    musicPlayer.pause()
+                }
+                return originalStartBattle(...args)
+            }
+
+            const originalShowHomeScreen = window.game.showHomeScreen.bind(window.game)
+            window.game.showHomeScreen = function (...args) {
+                const result = originalShowHomeScreen(...args)
+                tryAutoplay()
+                return result
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            tryAutoplay()
+            const waitForGame = setInterval(() => {
+                if (window.game) {
+                    patchGameMusic()
+                    clearInterval(waitForGame)
+                }
+            }, 50)
+        })
+    </script>
     <script type="module" src="./src/main.js"></script>
 </body>
 </html>

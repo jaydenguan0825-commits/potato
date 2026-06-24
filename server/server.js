@@ -42,6 +42,38 @@ app.get('/signup', (req, res) => {
     })
 })
 
+// Local fallback signup API for development (stores users in users.json)
+app.post('/api/signup', express.json(), (req, res) => {
+    try {
+        const { email, username, password } = req.body || {}
+        if (!email || !username || !password) {
+            return res.status(400).json({ error: 'Missing fields' })
+        }
+
+        const usersFile = path.join(rootDir, 'users.json')
+        let users = []
+        if (fs.existsSync(usersFile)) {
+            try { users = JSON.parse(fs.readFileSync(usersFile, 'utf8') || '[]') } catch (e) { users = [] }
+        }
+
+        if (users.find(u => u.email === email)) return res.status(400).json({ error: 'Email already registered' })
+        if (users.find(u => u.username === username)) return res.status(400).json({ error: 'Username already taken' })
+
+        const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8)
+        const hash = require('crypto').createHash('sha256').update(password).digest('hex')
+        const createdAt = new Date().toISOString()
+
+        const user = { id, email, username, password_hash: hash, createdAt }
+        users.push(user)
+        fs.writeFileSync(usersFile, JSON.stringify(users, null, 2), 'utf8')
+
+        return res.status(201).json({ success: true, userId: id })
+    } catch (err) {
+        console.error('Signup error:', err)
+        return res.status(500).json({ error: 'Internal error' })
+    }
+})
+
 app.get('/', (req, res) => {
     // Try dist first, then root
     let filePath = path.join(distDir, 'index.html')

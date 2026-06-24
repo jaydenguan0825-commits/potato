@@ -7,22 +7,39 @@ export class Game {
         this.resizeCanvas()
         window.addEventListener('resize', () => this.resizeCanvas())
 
+        // Load persistent data
+        const savedGold = localStorage.getItem('potatoGold')
+        const activeGold = savedGold !== null ? parseInt(savedGold, 10) : 100
+
+        const savedOwnedClasses = localStorage.getItem('potatoOwnedClasses')
+        const ownedClasses = savedOwnedClasses ? JSON.parse(savedOwnedClasses) : ['noob']
+
+        const savedClassLevels = localStorage.getItem('potatoClassLevels')
+        const classLevels = savedClassLevels ? JSON.parse(savedClassLevels) : {'noob': 1}
+
+        const savedXpBalance = localStorage.getItem('potatoXpBalance')
+        const xpBalance = savedXpBalance !== null ? parseInt(savedXpBalance, 10) : 0
+
+        const equippedClass = localStorage.getItem('potatoEquippedClass') || 'noob'
+
         // Player stats
         this.player = {
             x: 1000,
             y: 1000,
             size: 20,
-            health: 100,
-            maxHealth: 100,
-            level: 1,
+            hearts: 3,
+            heartPoints: 100,
+            maxHeartPoints: 100,
             exp: 0,
-            expToNext: 100,
+            expGoal: 400,
             direction: 0,
             damage: 10,
             speed: 120,
-            gold: 100,
-            class: null,
-            classLevel: 0,
+            gold: activeGold,
+            class: equippedClass,
+            classLevels: classLevels,
+            ownedClasses: ownedClasses,
+            xpBalance: xpBalance,
             abilityCooldown: 0,
             abilityActive: false,
             abilityDuration: 0,
@@ -35,7 +52,8 @@ export class Game {
             flamethrower: false,
             flamethrowerDuration: 0,
             megaRobot: null,
-            megaRobotDuration: 0
+            megaRobotDuration: 0,
+            movementMode: localStorage.getItem('potatoMovementMode') || 'keyboard'
         }
 
         // Game state
@@ -44,6 +62,7 @@ export class Game {
         this.items = []
         this.bullets = []
         this.bossBullets = []
+        this.allies = []
         this.particles = []
         this.kills = 0
         this.lastMobCount = 0
@@ -62,9 +81,9 @@ export class Game {
         this.player.runStartY = 1400
 
         this.homeShopInventory = [
-            { id: 'health_potion', name: 'Health Potion', cost: 50, description: 'Healing slot: restore 50 HP instantly.', type: 'healing', category: 'healing' },
+            { id: 'health_potion', name: 'Health Potion', cost: 50, description: 'Loot consumable: restore one heart when used with Q.', type: 'loot', category: 'healing' },
             { id: 'regeneration', name: 'Regeneration', cost: 120, description: 'Healing slot: recover HP over time.', type: 'healing', category: 'healing' },
-            { id: 'medkit', name: 'Medkit', cost: 80, description: 'Healing slot: slow regen plus first-aid heal.', type: 'healing', category: 'healing' },
+            { id: 'medkit', name: 'Medkit', cost: 80, description: 'Loot consumable: restore one heart when used with Q.', type: 'loot', category: 'healing' },
             { id: 'damage_boost', name: 'Damage Boost', cost: 100, description: 'Combat slot: increases base damage.', type: 'combat', category: 'combat' },
             { id: 'speed_boost', name: 'Speed Boost', cost: 150, description: 'Combat slot: increases movement speed.', type: 'combat', category: 'combat' },
             { id: 'boost_potion', name: 'Boost Potion', cost: 200, description: 'Combat slot: strong damage and speed bonus.', type: 'combat', category: 'combat' },
@@ -75,15 +94,8 @@ export class Game {
             { id: 'loot_boost', name: 'Loot Boost', cost: 120, description: 'Utility slot: increases your loot drop chance.', type: 'utility', category: 'utility' },
             { id: 'armour_piece', name: 'Armour Piece', cost: 180, description: 'Utility slot: reduces incoming damage.', type: 'utility', category: 'utility' },
             { id: 'noob', name: 'Class: Noob', cost: 0, description: 'Common starter class with balanced stats.', type: 'class', category: 'class' },
-            { id: 'pro', name: 'Class: Pro', cost: 100, description: 'Common upgrade with better loot rate.', type: 'class', category: 'class' },
-            { id: 'epic', name: 'Class: Epic', cost: 500, description: 'Epic class with higher loot rate and health.', type: 'class', category: 'class' },
-            { id: 'bloodthirsty_killer', name: 'Class: Bloodthirsty Killer', cost: 2000, description: 'Legendary class with attack boost ability.', type: 'class', category: 'class' },
             { id: 'speedster', name: 'Class: Speedster', cost: 200, description: 'Rare speed-focused class with low HP.', type: 'class', category: 'class' },
-            { id: 'flash', name: 'Class: Flash', cost: 800, description: 'Rare class with even higher speed.', type: 'class', category: 'class' },
-            { id: 'speed_demon', name: 'Class: Speed Demon', cost: 3000, description: 'Mythic class with dash ability.', type: 'class', category: 'class' },
-            { id: 'mechanic', name: 'Class: Mechanic', cost: 500, description: 'Epic class with high loot chance.', type: 'class', category: 'class' },
-            { id: 'genius', name: 'Class: Genius', cost: 2000, description: 'Legendary class with robot support.', type: 'class', category: 'class' },
-            { id: 'tech_savvy', name: 'Class: Tech Savvy', cost: 5000, description: 'Godly class with powerful tech abilities.', type: 'class', category: 'class' }
+            { id: 'mechanic', name: 'Class: Mechanic', cost: 500, description: 'Epic class with high loot chance.', type: 'class', category: 'class' }
         ]
 
         // World
@@ -100,6 +112,7 @@ export class Game {
             right: 'd',
             shoot: ' ',
             ability: 'z',
+            useItem: 'q',
             inventory: 'e',
             shop: 'p',
             settings: 'o'
@@ -117,14 +130,14 @@ export class Game {
                 rarity: 'common',
                 cost: 0,
                 stats: { health: 100, speed: 120, damage: 10, lootRate: 0.5 },
-                upgrades: ['pro', 'epic', 'bloodthirsty_killer'],
+                upgrades: ['pro'],
                 ability: null
             },
             pro: {
                 rarity: 'common',
                 cost: 100,
                 stats: { health: 120, speed: 112.5, damage: 12, lootRate: 0.7 },
-                upgrades: ['epic', 'bloodthirsty_killer'],
+                upgrades: ['epic'],
                 ability: null
             },
             epic: {
@@ -145,7 +158,7 @@ export class Game {
                 rarity: 'rare',
                 cost: 200,
                 stats: { health: 80, speed: 180, damage: 8, lootRate: 0.8 },
-                upgrades: ['flash', 'speed_demon'],
+                upgrades: ['flash'],
                 ability: null
             },
             flash: {
@@ -160,13 +173,13 @@ export class Game {
                 cost: 3000,
                 stats: { health: 100, speed: 240, damage: 12, lootRate: 1.1 },
                 upgrades: [],
-                ability: 'dash'
+                ability: 'invisibility'
             },
             mechanic: {
                 rarity: 'epic',
                 cost: 500,
                 stats: { health: 90, speed: 100, damage: 12, lootRate: 1.3 },
-                upgrades: ['genius', 'tech_savvy'],
+                upgrades: ['genius'],
                 ability: null
             },
             genius: {
@@ -174,7 +187,7 @@ export class Game {
                 cost: 2000,
                 stats: { health: 110, speed: 112.5, damage: 15, lootRate: 1.5 },
                 upgrades: ['tech_savvy'],
-                ability: null
+                ability: 'genius_summon'
             },
             tech_savvy: {
                 rarity: 'godly',
@@ -182,6 +195,13 @@ export class Game {
                 stats: { health: 130, speed: 125, damage: 18, lootRate: 1.8 },
                 upgrades: [],
                 ability: 'tech_abilities'
+            },
+            admin: {
+                rarity: 'admin',
+                cost: 99999,
+                stats: { health: 9999, speed: 350, damage: 250, lootRate: 5.0 },
+                upgrades: [],
+                ability: 'admin_blast'
             }
         }
 
@@ -217,11 +237,11 @@ export class Game {
 
     initializeBosses() {
         this.bosses = [
-            { id: 'boss_plain', x: 1000, y: 1000, health: 2000, maxHealth: 2000, size: 60, color: '#8b008b', biome: 'plain', defeated: false },
-            { id: 'boss_snowy', x: 200, y: 200, health: 1500, maxHealth: 1500, size: 50, color: '#6495ed', biome: 'snowy', defeated: false },
-            { id: 'boss_volcano', x: 1800, y: 200, health: 1800, maxHealth: 1800, size: 55, color: '#ff4500', biome: 'volcano', defeated: false },
-            { id: 'boss_jungle', x: 200, y: 1800, health: 1600, maxHealth: 1600, size: 52, color: '#228b22', biome: 'jungle', defeated: false },
-            { id: 'boss_desert', x: 1800, y: 1800, health: 1700, maxHealth: 1700, size: 53, color: '#daa520', biome: 'desert', defeated: false }
+            { id: 'boss_plain', x: 1000, y: 1000, health: 2500, maxHealth: 2500, size: 62, color: '#8b008b', biome: 'plain', defeated: false },
+            { id: 'boss_snowy', x: 200, y: 200, health: 1900, maxHealth: 1900, size: 52, color: '#6495ed', biome: 'snowy', defeated: false },
+            { id: 'boss_volcano', x: 1800, y: 200, health: 2300, maxHealth: 2300, size: 56, color: '#ff4500', biome: 'volcano', defeated: false },
+            { id: 'boss_jungle', x: 200, y: 1800, health: 2100, maxHealth: 2100, size: 54, color: '#228b22', biome: 'jungle', defeated: false },
+            { id: 'boss_desert', x: 1800, y: 1800, health: 2200, maxHealth: 2200, size: 55, color: '#daa520', biome: 'desert', defeated: false }
         ]
     }
 
@@ -252,6 +272,9 @@ export class Game {
             }
             if (key === this.controls.ability) {
                 this.useAbility()
+            }
+            if (key === this.controls.useItem) {
+                this.useItem()
             }
             if (key === this.controls.inventory) {
                 this.openInventory()
@@ -310,6 +333,7 @@ export class Game {
         this.updateBossBullets(deltaTime)
         this.updateItems(deltaTime)
         this.updateAbilities(deltaTime)
+        this.updateAllies(deltaTime)
         this.spawnMobs()
         this.updateCamera()
         this.updateUI()
@@ -319,29 +343,52 @@ export class Game {
         // Movement
         let moveX = 0
         let moveY = 0
-
-        if (this.keys[this.controls.up]) moveY -= 1
-        if (this.keys[this.controls.down]) moveY += 1
-        if (this.keys[this.controls.left]) moveX -= 1
-        if (this.keys[this.controls.right]) moveX += 1
-
-        if (this.mouseAim.active) {
-            this.player.direction = Math.atan2(this.mouseAim.y, this.mouseAim.x)
-        } else if (moveX !== 0 || moveY !== 0) {
-            this.player.direction = Math.atan2(moveY, moveX)
-        }
-
-        // Normalize diagonal movement
-        if (moveX !== 0 && moveY !== 0) {
-            const length = Math.sqrt(moveX * moveX + moveY * moveY)
-            moveX /= length
-            moveY /= length
-        }
-
-        // Update position
         const speedMultiplier = this.player.dashActive ? this.player.dashSpeedMultiplier : 1
-        this.player.x += moveX * this.player.speed * speedMultiplier * deltaTime
-        this.player.y += moveY * this.player.speed * speedMultiplier * deltaTime
+
+        if (this.player.movementMode === 'mouse') {
+            const screenX = this.player.x - this.camera.x
+            const screenY = this.player.y - this.camera.y
+            const dx = this.mouse.x - screenX
+            const dy = this.mouse.y - screenY
+            const dist = Math.hypot(dx, dy)
+
+            // Face target (if mouse is active)
+            if (this.mouseAim.active) {
+                this.player.direction = Math.atan2(this.mouseAim.y, this.mouseAim.x)
+            }
+
+            if (dist > 12) {
+                const angle = Math.atan2(dy, dx)
+                // If not using mouse aim, player direction matches movement direction
+                if (!this.mouseAim.active) {
+                    this.player.direction = angle
+                }
+                this.player.x += Math.cos(angle) * this.player.speed * speedMultiplier * deltaTime
+                this.player.y += Math.sin(angle) * this.player.speed * speedMultiplier * deltaTime
+            }
+        } else {
+            if (this.keys[this.controls.up]) moveY -= 1
+            if (this.keys[this.controls.down]) moveY += 1
+            if (this.keys[this.controls.left]) moveX -= 1
+            if (this.keys[this.controls.right]) moveX += 1
+
+            if (this.mouseAim.active) {
+                this.player.direction = Math.atan2(this.mouseAim.y, this.mouseAim.x)
+            } else if (moveX !== 0 || moveY !== 0) {
+                this.player.direction = Math.atan2(moveY, moveX)
+            }
+
+            // Normalize diagonal movement
+            if (moveX !== 0 && moveY !== 0) {
+                const length = Math.sqrt(moveX * moveX + moveY * moveY)
+                moveX /= length
+                moveY /= length
+            }
+
+            // Update position
+            this.player.x += moveX * this.player.speed * speedMultiplier * deltaTime
+            this.player.y += moveY * this.player.speed * speedMultiplier * deltaTime
+        }
 
         // Keep in bounds
         this.player.x = Math.max(0, Math.min(this.worldWidth, this.player.x))
@@ -382,16 +429,69 @@ export class Game {
                 this.player.attackBoost = 1.3
                 this.player.abilityDuration = 10000
                 break
-            case 'dash':
-                this.player.dashActive = true
-                this.player.dashSpeedMultiplier = 3
-                this.player.abilityDuration = 500
+            case 'invisibility':
+                this.player.invisible = true
+                this.player.abilityDuration = 5000
+                break
+            case 'genius_summon':
+                const geniusChoices = ['drone', 'mini_robot', 'armor_scrap']
+                const choice = geniusChoices[Math.floor(Math.random() * geniusChoices.length)]
+                if (choice === 'drone') {
+                    this.allies.push({
+                        type: 'drone',
+                        x: this.player.x,
+                        y: this.player.y,
+                        size: 16,
+                        health: 100,
+                        maxHealth: 100,
+                        duration: 10,
+                        shootCooldown: 0,
+                        angle: 0
+                    })
+                    alert('Spawned a friendly Helper Drone!')
+                } else if (choice === 'mini_robot') {
+                    this.allies.push({
+                        type: 'mini_robot',
+                        x: this.player.x + 40,
+                        y: this.player.y,
+                        size: 20,
+                        health: 250,
+                        maxHealth: 250,
+                        duration: 10
+                    })
+                    alert('Spawned a friendly Mini Robot!')
+                } else if (choice === 'armor_scrap') {
+                    this.items.push({
+                        x: this.player.x + (Math.random() - 0.5) * 40,
+                        y: this.player.y + (Math.random() - 0.5) * 40,
+                        type: 'armor_scrap',
+                        value: 30,
+                        size: 8
+                    })
+                    alert('Genius created an Armor Scrap piece nearby!')
+                }
+                this.player.abilityDuration = 1000
                 break
             case 'tech_abilities':
                 // Random tech ability
                 const abilities = ['flamethrower', 'shield', 'mega_robot']
                 const randomAbility = abilities[Math.floor(Math.random() * abilities.length)]
                 this.activateTechAbility(randomAbility)
+                break
+            case 'admin_blast':
+                // Dev orbital blast: 36 bullets outward
+                for (let i = 0; i < 36; i++) {
+                    const angle = (i * Math.PI * 2) / 36
+                    this.bullets.push({
+                        x: this.player.x,
+                        y: this.player.y,
+                        dx: Math.cos(angle) * 350,
+                        dy: Math.sin(angle) * 350,
+                        damage: this.player.damage * 2.5,
+                        owner: 'player'
+                    })
+                }
+                this.player.abilityDuration = 500
                 break
         }
     }
@@ -410,15 +510,15 @@ export class Game {
                 this.player.abilityDuration = 20000
                 break
             case 'mega_robot':
-                this.player.megaRobot = {
+                this.allies.push({
+                    type: 'mega_robot',
                     x: this.player.x + 50,
                     y: this.player.y,
                     health: 500,
                     maxHealth: 500,
                     size: 30,
-                    target: null
-                }
-                this.player.megaRobotDuration = 30000
+                    duration: 30
+                })
                 this.player.abilityDuration = 30000
                 break
         }
@@ -448,10 +548,81 @@ export class Game {
         if (this.player.flamethrower) {
             this.applyFlamethrower(deltaTime)
         }
+    }
 
-        if (this.player.megaRobot) {
-            this.updateMegaRobot(deltaTime)
-        }
+    updateAllies(deltaTime) {
+        if (!this.allies) return
+        this.allies = this.allies.filter(ally => {
+            ally.duration -= deltaTime
+            if (ally.duration <= 0) return false
+
+            if (ally.type === 'mega_robot' || ally.type === 'mini_robot') {
+                // Chase nearest mob and attack
+                const nearestMob = this.mobs.reduce((closest, mob) => {
+                    const dist = Math.hypot(ally.x - mob.x, ally.y - mob.y)
+                    if (!closest || dist < closest.dist) return { mob, dist }
+                    return closest
+                }, null)
+
+                if (nearestMob && nearestMob.dist > 0) {
+                    const dx = nearestMob.mob.x - ally.x
+                    const dy = nearestMob.mob.y - ally.y
+                    const dist = Math.hypot(dx, dy)
+                    const speed = ally.type === 'mega_robot' ? 160 : 130
+                    ally.x += (dx / dist) * speed * deltaTime
+                    ally.y += (dy / dist) * speed * deltaTime
+
+                    if (dist < ally.size / 2 + nearestMob.mob.size / 2) {
+                        const damageRate = ally.type === 'mega_robot' ? 45 : 25
+                        nearestMob.mob.health -= damageRate * deltaTime
+                        if (nearestMob.mob.health <= 0) {
+                            this.killMob(nearestMob.mob)
+                            this.mobs = this.mobs.filter(m => m !== nearestMob.mob)
+                        }
+                    }
+                } else {
+                    // Return/follow player
+                    const targetX = this.player.x + (ally.type === 'mega_robot' ? 50 : -50)
+                    const targetY = this.player.y
+                    ally.x += (targetX - ally.x) * 5 * deltaTime
+                    ally.y += (targetY - ally.y) * 5 * deltaTime
+                }
+            } else if (ally.type === 'drone') {
+                // Orbit player
+                if (ally.angle === undefined) ally.angle = 0
+                ally.angle += 3 * deltaTime // Orbit speed
+                const orbitRadius = 45
+                ally.x = this.player.x + Math.cos(ally.angle) * orbitRadius
+                ally.y = this.player.y + Math.sin(ally.angle) * orbitRadius
+
+                // Shoot at nearest mob
+                if (ally.shootCooldown === undefined) ally.shootCooldown = 0
+                ally.shootCooldown -= deltaTime
+                if (ally.shootCooldown <= 0) {
+                    const nearestMob = this.mobs.reduce((closest, mob) => {
+                        const dist = Math.hypot(ally.x - mob.x, ally.y - mob.y)
+                        if (!closest || dist < closest.dist) return { mob, dist }
+                        return closest
+                    }, null)
+
+                    if (nearestMob && nearestMob.dist < 220) {
+                        const dx = nearestMob.mob.x - ally.x
+                        const dy = nearestMob.mob.y - ally.y
+                        const angle = Math.atan2(dy, dx)
+                        this.bullets.push({
+                            x: ally.x,
+                            y: ally.y,
+                            dx: Math.cos(angle) * 320,
+                            dy: Math.sin(angle) * 320,
+                            damage: this.player.damage * 0.5,
+                            owner: 'player'
+                        })
+                        ally.shootCooldown = 0.8 // Shoot every 0.8 seconds
+                    }
+                }
+            }
+            return true
+        })
     }
 
     deactivateAbility() {
@@ -463,10 +634,7 @@ export class Game {
         this.player.shieldActive = 0
         this.player.flamethrower = false
         this.player.flamethrowerDuration = 0
-        if (this.player.megaRobot) {
-            this.player.megaRobot = null
-            this.player.megaRobotDuration = 0
-        }
+        this.player.invisible = false
     }
 
     openClassMenu() {
@@ -476,7 +644,10 @@ export class Game {
             const classData = this.classes[className]
             this.player.class = className
             this.player.classLevel = 0
-            Object.assign(this.player, classData.stats)
+            const { health, ...stats } = classData.stats
+            Object.assign(this.player, stats)
+            this.player.hearts = 3
+            this.player.heartPoints = this.player.maxHeartPoints
             this.addInventoryItem({ id: className, name: 'Class: ' + className, type: 'class' })
             this.updateUI()
             console.log(`Selected class: ${className}`)
@@ -560,32 +731,20 @@ export class Game {
         }
 
         this.player.gold -= cost
+        localStorage.setItem('potatoGold', this.player.gold)
         const itemType = itemData ? itemData.type : 'shop'
         const inventoryItem = { id: itemId, name: itemData ? itemData.name : itemId, type: itemType, category: itemData ? itemData.category : null }
 
         if (itemType === 'class') {
+            if (!this.player.ownedClasses.includes(itemId)) {
+                this.player.ownedClasses.push(itemId)
+                this.player.classLevels[itemId] = 1
+                localStorage.setItem('potatoOwnedClasses', JSON.stringify(this.player.ownedClasses))
+                localStorage.setItem('potatoClassLevels', JSON.stringify(this.player.classLevels))
+            }
             this.applyClass(itemId)
-            this.addInventoryItem(inventoryItem)
         } else {
             this.addInventoryItem(inventoryItem)
-            switch (itemId) {
-                case 'health_potion':
-                    this.player.health = Math.min(this.player.maxHealth, this.player.health + 50)
-                    break
-                case 'pistol':
-                case 'rifle':
-                case 'shotgun':
-                case 'loot_magnet':
-                case 'boost_potion':
-                case 'speed_boost':
-                case 'damage_boost':
-                case 'regeneration':
-                case 'medkit':
-                case 'loot_boost':
-                case 'armour_piece':
-                    // these are not immediate: equip them from inventory
-                    break
-            }
         }
 
         this.updateUI()
@@ -597,10 +756,15 @@ export class Game {
         if (!classData) return
 
         this.player.class = classId
-        this.player.classLevel = 0
-        Object.assign(this.player, classData.stats)
-        this.player.maxHealth = classData.stats.health
-        this.player.health = Math.min(this.player.health, this.player.maxHealth)
+        localStorage.setItem('potatoEquippedClass', classId)
+
+        const level = this.player.classLevels[classId] || 1
+        const statMultiplier = 1 + (level - 1) * 0.05
+
+        const baseHealth = classData.stats.health || 100
+        this.player.maxHeartPoints = baseHealth * statMultiplier
+        this.player.hearts = 3
+        this.player.heartPoints = this.player.maxHeartPoints
     }
 
     equipLoadout(category, itemId) {
@@ -614,6 +778,10 @@ export class Game {
 
     applyLoadoutEffects(deltaTime) {
         const loadout = this.player.loadout
+        const activeClass = this.player.class || 'noob'
+        const classInfo = this.classes[activeClass]
+        const classLevel = this.player.classLevels[activeClass] || 1
+        const statMultiplier = 1 + (classLevel - 1) * 0.05
 
         // Reset dynamic modifiers before applying
         this.player.loadoutDamageBonus = 0
@@ -622,16 +790,16 @@ export class Game {
         this.player.loadoutLootBonus = 0
 
         if (loadout.healing === 'regeneration') {
-            this.player.health = Math.min(this.player.maxHealth, this.player.health + 4 * deltaTime)
+            this.healPlayer(4 * deltaTime)
         }
         if (loadout.healing === 'medkit') {
-            this.player.health = Math.min(this.player.maxHealth, this.player.health + 2 * deltaTime)
+            this.healPlayer(2 * deltaTime)
         }
         if (loadout.healing === 'medkit_loot' || loadout.healing === 'medkit') {
-            this.player.health = Math.min(this.player.maxHealth, this.player.health + 2.5 * deltaTime)
+            this.healPlayer(2.5 * deltaTime)
         }
         if (loadout.healing === 'meat_loot' || loadout.healing === 'meat') {
-            this.player.health = Math.min(this.player.maxHealth, this.player.health + 1.5 * deltaTime)
+            this.healPlayer(1.5 * deltaTime)
         }
         if (loadout.combat === 'damage_boost') {
             this.player.loadoutDamageBonus += 5
@@ -662,18 +830,23 @@ export class Game {
             this.player.loadoutDamageReduction += 0.15
         }
 
-        this.player.damage = (this.classes[this.player.class]?.stats.damage || 10) + this.player.loadoutDamageBonus
-        this.player.speed = (this.classes[this.player.class]?.stats.speed || 120) + this.player.loadoutSpeedBonus
+        const baseDamage = (classInfo?.stats.damage || 10) * statMultiplier
+        const baseSpeed = (classInfo?.stats.speed || 120) * statMultiplier
+        const baseLootRate = (classInfo?.stats.lootRate || 0.5) * statMultiplier
+
+        this.player.damage = baseDamage + this.player.loadoutDamageBonus
+        this.player.speed = baseSpeed + this.player.loadoutSpeedBonus
+        this.player.lootRate = baseLootRate + this.player.loadoutLootBonus
+
+        const baseHealth = classInfo?.stats.health || 100
+        this.player.maxHeartPoints = baseHealth * statMultiplier
     }
     startBattle() {
         // Ensure a class is selected
         if (!this.player.class) {
-            const classData = this.classes['noob']
-            this.player.class = 'noob'
-            this.player.classLevel = 0
-            Object.assign(this.player, classData.stats)
-            this.player.maxHealth = classData.stats.health
-            this.player.health = this.player.maxHealth
+            this.applyClass('noob')
+        } else {
+            this.applyClass(this.player.class)
         }
         this.isHome = false
         this.hideAllOverlays()
@@ -733,6 +906,20 @@ export class Game {
         const shopMenu = document.getElementById('homeShopMenu')
         if (shopMenu) shopMenu.style.display = 'none'
         this.homeShopOpen = false
+        this.updateSettingsUI()
+    }
+
+    toggleMovementMode() {
+        this.player.movementMode = this.player.movementMode === 'keyboard' ? 'mouse' : 'keyboard'
+        localStorage.setItem('potatoMovementMode', this.player.movementMode)
+        this.updateSettingsUI()
+    }
+
+    updateSettingsUI() {
+        const toggleBtn = document.getElementById('movementModeToggle')
+        if (toggleBtn) {
+            toggleBtn.textContent = this.player.movementMode === 'keyboard' ? 'Keyboard (WASD)' : 'Mouse Pointer'
+        }
     }
 
     closeSettings() {
@@ -753,6 +940,7 @@ export class Game {
             { action: 'right', label: 'Move Right' },
             { action: 'shoot', label: 'Shoot' },
             { action: 'ability', label: 'Ability' },
+            { action: 'useItem', label: 'Use Item' },
             { action: 'inventory', label: 'Inventory' },
             { action: 'shop', label: 'Shop / Home' },
             { action: 'settings', label: 'Open Settings' }
@@ -807,6 +995,7 @@ export class Game {
             right: 'Move Right',
             shoot: 'Shoot',
             ability: 'Ability',
+            useItem: 'Use Item',
             inventory: 'Inventory',
             shop: 'Shop / Home',
             settings: 'Open Settings'
@@ -923,6 +1112,66 @@ export class Game {
         `
         inventoryContents.appendChild(loadoutPanel)
 
+        const classesPanel = document.createElement('div')
+        classesPanel.style.cssText = `
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 14px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            color: #e2f9ff;
+        `
+        let classesHtml = `<div style="font-size: 16px; font-weight: bold; margin-bottom: 12px; color: #7cffb2;">Classes & Upgrade Trees</div>`
+        classesHtml += `<div style="margin-bottom: 10px; color: #ffda75; font-size: 14px; font-weight: bold;">Persistent XP Balance: ${this.player.xpBalance} XP</div>`
+        classesHtml += `<div style="display: grid; gap: 12px;">`
+
+        this.player.ownedClasses.forEach(classId => {
+            const classConfig = this.classes[classId]
+            if (!classConfig) return
+            const currentLevel = this.player.classLevels[classId] || 1
+            const statMultiplier = 1 + (currentLevel - 1) * 0.05
+            
+            const isEquipped = this.player.class === classId
+            const levelUpCost = currentLevel * 200
+            const nextClassId = classConfig.upgrades && classConfig.upgrades[0]
+            const nextClassConfig = nextClassId ? this.classes[nextClassId] : null
+
+            classesHtml += `
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); padding: 12px; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span><strong style="color: #79d2ff; text-transform: uppercase;">${classId.replace(/_/g, ' ')}</strong> (Level ${currentLevel})</span>
+                        ${isEquipped ? `<span style="background: #00ff88; color: #061c10; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">Active</span>` : ''}
+                    </div>
+                    <div style="font-size: 12px; color: #cbd5e1; margin-bottom: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px;">
+                        <div>HP: ${Math.round(classConfig.stats.health * statMultiplier)}</div>
+                        <div>Speed: ${Math.round(classConfig.stats.speed * statMultiplier)}</div>
+                        <div>Damage: ${Math.round(classConfig.stats.damage * statMultiplier)}</div>
+                        <div>Loot Rate: ${(classConfig.stats.lootRate * statMultiplier).toFixed(2)}x</div>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            `
+
+            if (!isEquipped) {
+                classesHtml += `<button onclick="window.game.equipClass('${classId}')" style="padding: 6px 12px; border: none; border-radius: 6px; background: #00bfff; color: #061c10; font-weight: bold; cursor: pointer; font-size: 12px;">Equip</button>`
+            }
+
+            classesHtml += `<button onclick="window.game.levelUpClass('${classId}')" ${this.player.xpBalance < levelUpCost ? 'disabled' : ''} style="padding: 6px 12px; border: none; border-radius: 6px; background: ${this.player.xpBalance < levelUpCost ? '#4b5563' : '#ffda75'}; color: ${this.player.xpBalance < levelUpCost ? '#9ca3af' : '#1d1700'}; font-weight: bold; cursor: pointer; font-size: 12px;">Level Up (${levelUpCost} XP)</button>`
+
+            if (nextClassConfig) {
+                const canUpgrade = this.player.gold >= nextClassConfig.cost
+                classesHtml += `<button onclick="window.game.upgradeClass('${classId}')" ${!canUpgrade ? 'disabled' : ''} style="padding: 6px 12px; border: none; border-radius: 6px; background: ${!canUpgrade ? '#4b5563' : '#ffcc00'}; color: ${!canUpgrade ? '#9ca3af' : '#1d1700'}; font-weight: bold; cursor: pointer; font-size: 12px;">Upgrade to ${nextClassId.replace(/_/g, ' ')} (${nextClassConfig.cost}g)</button>`
+            }
+
+            classesHtml += `
+                    </div>
+                </div>
+            `
+        })
+
+        classesHtml += `</div>`
+        classesPanel.innerHTML = classesHtml
+        inventoryContents.appendChild(classesPanel)
+
         if (inventoryList.length === 0) {
             const emptyMessage = document.createElement('div')
             emptyMessage.style.color = '#cbd5e1'
@@ -951,7 +1200,21 @@ export class Game {
                     <span style="color: #f8f9fa; font-size: 13px;">${item.id}</span>
                 </div>
             `
-            if (['healing', 'combat', 'utility'].includes(item.category)) {
+            if (item.type === 'loot') {
+                const button = document.createElement('button')
+                button.textContent = 'Use'
+                button.style.cssText = `
+                    padding: 8px 12px;
+                    cursor: pointer;
+                    border-radius: 8px;
+                    border: none;
+                    background: #00bfff;
+                    color: #061c10;
+                    font-weight: bold;
+                `
+                button.onclick = () => this.useInventoryItem(this.player.inventory.indexOf(item))
+                itemDiv.appendChild(button)
+            } else if (['healing', 'combat', 'utility'].includes(item.category)) {
                 const button = document.createElement('button')
                 button.textContent = this.player.loadout[item.category] === item.id ? 'Equipped' : 'Equip'
                 button.disabled = this.player.loadout[item.category] === item.id
@@ -971,9 +1234,121 @@ export class Game {
         })
     }
 
+    equipClass(classId) {
+        this.applyClass(classId)
+        this.updateUI()
+        if (this.inventoryOpen) this.renderInventory()
+    }
+
+    levelUpClass(classId) {
+        const currentLevel = this.player.classLevels[classId] || 1
+        const cost = currentLevel * 200
+        if (this.player.xpBalance < cost) {
+            alert('Not enough XP Balance!')
+            return
+        }
+
+        this.player.xpBalance -= cost
+        localStorage.setItem('potatoXpBalance', this.player.xpBalance)
+
+        this.player.classLevels[classId] = currentLevel + 1
+        localStorage.setItem('potatoClassLevels', JSON.stringify(this.player.classLevels))
+
+        if (this.player.class === classId) {
+            this.applyClass(classId)
+        }
+
+        this.updateUI()
+        if (this.inventoryOpen) this.renderInventory()
+    }
+
+    upgradeClass(classId) {
+        const classConfig = this.classes[classId]
+        if (!classConfig || !classConfig.upgrades || classConfig.upgrades.length === 0) return
+
+        const nextClassId = classConfig.upgrades[0]
+        const nextClassConfig = this.classes[nextClassId]
+        if (!nextClassConfig) return
+
+        const cost = nextClassConfig.cost
+        if (this.player.gold < cost) {
+            alert('Not enough gold!')
+            return
+        }
+
+        this.player.gold -= cost
+        localStorage.setItem('potatoGold', this.player.gold)
+
+        // Replace old class with new class in ownedClasses
+        const index = this.player.ownedClasses.indexOf(classId)
+        if (index !== -1) {
+            this.player.ownedClasses[index] = nextClassId
+        } else {
+            this.player.ownedClasses.push(nextClassId)
+        }
+        localStorage.setItem('potatoOwnedClasses', JSON.stringify(this.player.ownedClasses))
+
+        // Inherit class level
+        this.player.classLevels[nextClassId] = this.player.classLevels[classId] || 1
+        delete this.player.classLevels[classId]
+        localStorage.setItem('potatoClassLevels', JSON.stringify(this.player.classLevels))
+
+        // If old class was equipped, equip the upgraded one
+        if (this.player.class === classId) {
+            this.applyClass(nextClassId)
+        }
+
+        this.updateUI()
+        if (this.inventoryOpen) this.renderInventory()
+    }
+
     addInventoryItem(item) {
+        if (item.type === 'loot') {
+            this.player.inventory.push(item)
+            return
+        }
         if (!this.player.inventory.some(entry => entry.id === item.id && entry.type === item.type)) {
             this.player.inventory.push(item)
+        }
+    }
+
+    useItem() {
+        const index = this.player.inventory.findIndex(item => item.type === 'loot')
+        if (index === -1) return
+        this.useInventoryItem(index)
+    }
+
+    useInventoryItem(index) {
+        const item = this.player.inventory[index]
+        if (!item || item.type !== 'loot') return
+
+        if (!this.applyLootEffect(item)) {
+            return
+        }
+
+        this.player.inventory.splice(index, 1)
+        this.updateUI()
+        if (this.inventoryOpen) this.renderInventory()
+    }
+
+    applyLootEffect(item) {
+        switch (item.id) {
+            case 'health_potion':
+            case 'medkit':
+                this.healPlayer(100)
+                alert(`Used ${item.name}`)
+                return true
+            case 'meat':
+                this.healPlayer(50)
+                alert(`Used ${item.name}`)
+                return true
+            case 'gun_drop':
+                this.player.damage += 2
+                alert(`Used ${item.name}. Damage increased.`)
+                return true
+            default:
+                alert(`Can't use ${item.name} right now.`)
+                return false
         }
     }
 
@@ -995,6 +1370,7 @@ export class Game {
         this.bullets = []
         this.bossBullets = []
         this.items = []
+        this.allies = []
         this.kills = 0
         this.initializeBosses()
         // Ensure player doesn't spawn near a boss
@@ -1017,10 +1393,10 @@ export class Game {
             this.player.x = this.player.runStartX
             this.player.y = this.player.runStartY
         }
-        this.player.health = this.player.maxHealth
+        this.player.hearts = 3
+        this.player.heartPoints = this.player.maxHeartPoints
         this.player.exp = 0
-        this.player.level = 1
-        this.player.expToNext = 100
+        this.player.expGoal = 400
         this.player.dashActive = false
         this.player.dashSpeedMultiplier = 1
         this.player.abilityActive = false
@@ -1029,6 +1405,8 @@ export class Game {
         this.player.shield = false
         this.player.flamethrower = false
         this.player.megaRobot = null
+        this.player.shieldHp = 0
+        this.player.runDamageBonus = 0
     }
 
     showHomeButton() {
@@ -1077,15 +1455,15 @@ export class Game {
             const chaseRadius = 150
             const forgetRadius = 250
 
-            if (dist < chaseRadius) {
+            if (dist < chaseRadius && !this.player.invisible) {
                 // Player is nearby: chase toward the player
                 mob.wander = { dx: 0, dy: 0 }
                 if (dist > 0) {
                     mob.x += (dx / dist) * mob.speed * deltaTime
                     mob.y += (dy / dist) * mob.speed * deltaTime
                 }
-            } else if (dist > forgetRadius) {
-                // Player is far away: wander slowly
+            } else if (dist > forgetRadius || this.player.invisible) {
+                // Player is far away or invisible: wander slowly
                 if (!mob.wander || Math.random() < 0.005) {
                     const angle = Math.random() * Math.PI * 2
                     mob.wander = { dx: Math.cos(angle), dy: Math.sin(angle) }
@@ -1107,15 +1485,12 @@ export class Game {
             mob.y = Math.max(0, Math.min(this.worldHeight, mob.y))
 
             // Attack player if close and visible
-            if (dist < 30) {
+            if (dist < 30 && !this.player.invisible) {
                 let damage = mob.damage
                 if (this.player.shieldActive > 0) {
                     damage *= 0.5
                 }
-                this.player.health -= damage * deltaTime
-                if (this.player.health <= 0) {
-                    this.gameOver()
-                }
+                        this.applyDamage(damage * deltaTime)
             }
         })
     }
@@ -1134,18 +1509,24 @@ export class Game {
             // Boss shoots periodically at player
             boss.shootCooldown -= deltaTime
             if (boss.shootCooldown <= 0 && dist < 800) {
-                // Shoot at player
+                const bossProps = {
+                    boss_plain: { damage: 22, speed: 220, minCd: 0.7, maxCd: 1.1 },
+                    boss_snowy: { damage: 20, speed: 240, minCd: 0.6, maxCd: 1.0 },
+                    boss_volcano: { damage: 24, speed: 260, minCd: 0.5, maxCd: 0.9 },
+                    boss_jungle: { damage: 21, speed: 230, minCd: 0.6, maxCd: 1.0 },
+                    boss_desert: { damage: 23, speed: 240, minCd: 0.6, maxCd: 1.0 }
+                }
+                const props = bossProps[boss.id] || { damage: 20, speed: 220, minCd: 0.7, maxCd: 1.1 }
                 const angle = Math.atan2(dy, dx)
-                const speed = 200
                 this.bossBullets.push({
                     x: boss.x,
                     y: boss.y,
-                    dx: Math.cos(angle) * speed,
-                    dy: Math.sin(angle) * speed,
-                    damage: 15,
+                    dx: Math.cos(angle) * props.speed,
+                    dy: Math.sin(angle) * props.speed,
+                    damage: props.damage,
                     size: 8
                 })
-                boss.shootCooldown = 0.8 + Math.random() * 0.4 // Shoot every 0.8-1.2 seconds
+                boss.shootCooldown = props.minCd + Math.random() * (props.maxCd - props.minCd)
             }
 
             // Boss takes damage from bullets
@@ -1172,10 +1553,7 @@ export class Game {
                 if (this.player.shieldActive > 0) {
                     damage *= 0.5
                 }
-                this.player.health -= damage
-                if (this.player.health <= 0) {
-                    this.gameOver()
-                }
+                this.applyDamage(damage)
                 return false // Remove bullet
             }
 
@@ -1220,16 +1598,44 @@ export class Game {
         })
     }
 
+    gainGold(amount) {
+        this.player.gold += amount
+        localStorage.setItem('potatoGold', this.player.gold)
+    }
+
+    gainXp(amount) {
+        this.player.exp += amount
+        this.player.xpBalance += amount
+        localStorage.setItem('potatoXpBalance', this.player.xpBalance)
+
+        while (this.player.exp >= this.player.expGoal) {
+            this.player.exp -= this.player.expGoal
+            this.player.expGoal = Math.round(this.player.expGoal * 1.25)
+            if (this.player.expGoal < 400) this.player.expGoal = 400
+        }
+    }
+
     killMob(mob) {
         this.kills++
-        this.player.exp += mob.exp
-        this.player.gold += mob.gold
+        this.gainGold(mob.gold)
+        this.gainXp(mob.exp)
 
         // Drop loot
-        const dropChance = 0.3 + (this.player.loadoutLootBonus || 0)
+        const baseDropChance = 0.2 + (mob.level || 1) * 0.06
+        const dropChance = baseDropChance * (1 + (this.player.loadoutLootBonus || 0))
         if (Math.random() < dropChance) {
-            const lootTypes = ['xp', 'gold', 'medkit', 'meat', 'gun']
-            const lootType = lootTypes[Math.floor(Math.random() * lootTypes.length)]
+            let lootType = 'xp'
+            const level = mob.level || 1
+            const r = Math.random()
+            
+            if (level <= 2) {
+                lootType = r < 0.4 ? 'xp' : (r < 0.8 ? 'gold' : 'meat')
+            } else if (level <= 4) {
+                lootType = r < 0.3 ? 'xp' : (r < 0.6 ? 'gold' : (r < 0.8 ? 'meat' : 'medkit'))
+            } else {
+                lootType = r < 0.25 ? 'xp' : (r < 0.5 ? 'gold' : (r < 0.65 ? 'meat' : (r < 0.8 ? 'medkit' : (r < 0.92 ? 'gun' : 'armor_scrap'))))
+            }
+
             this.items.push({
                 x: mob.x,
                 y: mob.y,
@@ -1238,21 +1644,12 @@ export class Game {
                 size: 8
             })
         }
-
-        // Level up
-        while (this.player.exp >= this.player.expToNext) {
-            this.player.exp -= this.player.expToNext
-            this.player.level++
-            this.player.expToNext = this.player.level * 100
-            this.player.maxHealth += 10
-            this.player.health = this.player.maxHealth
-        }
     }
 
     defeatBoss(boss) {
         boss.defeated = true
-        this.player.exp += 500
-        this.player.gold += 1000
+        this.gainXp(500)
+        this.gainGold(1000)
 
         // Check win condition
         if (this.bosses.every(b => b.defeated)) {
@@ -1275,22 +1672,26 @@ export class Game {
                 // Pickup item
                 switch (item.type) {
                     case 'xp':
-                        this.player.exp += item.value
+                        this.gainXp(item.value)
                         break
                     case 'gold':
-                        this.player.gold += item.value
+                        this.gainGold(item.value)
                         break
                     case 'medkit':
-                        this.player.health = Math.min(this.player.maxHealth, this.player.health + 50)
+                        this.healPlayer(100)
                         this.addInventoryItem({ id: 'medkit', name: 'Medkit Loot', type: 'loot', category: 'healing' })
                         break
                     case 'meat':
-                        this.player.health = Math.min(this.player.maxHealth, this.player.health + 25)
+                        this.healPlayer(50)
                         this.addInventoryItem({ id: 'meat', name: 'Meat Loot', type: 'loot', category: 'healing' })
                         break
                     case 'gun':
-                        this.player.damage += 2
+                        this.player.runDamageBonus = (this.player.runDamageBonus || 0) + 2
                         this.addInventoryItem({ id: 'gun_drop', name: 'Dropped Gun', type: 'loot', category: 'combat' })
+                        break
+                    case 'armor_scrap':
+                        this.player.shieldHp = (this.player.shieldHp || 0) + 30
+                        this.addInventoryItem({ id: 'armour_piece', name: 'Armor Scrap', type: 'loot', category: 'utility' })
                         break
                 }
                 this.items.splice(index, 1)
@@ -1313,9 +1714,18 @@ export class Game {
     }
 
     updateUI() {
-        document.getElementById('healthValue').textContent = `${Math.ceil(this.player.health)}/${this.player.maxHealth}`
-        document.getElementById('levelValue').textContent = this.player.level
-        document.getElementById('expValue').textContent = `${this.player.exp}/${this.player.expToNext}`
+        const healthEl = document.getElementById('healthValue')
+        const healthBarFill = document.getElementById('healthBarFill')
+        const healthPercent = Math.max(0, Math.min(100, Math.round((this.player.heartPoints / this.player.maxHeartPoints) * 100)))
+        if (healthEl) {
+            const fullHearts = Math.max(0, Math.min(3, this.player.hearts))
+            const hearts = '♥'.repeat(fullHearts) + '♡'.repeat(3 - fullHearts)
+            healthEl.textContent = hearts
+        }
+        if (healthBarFill) {
+            healthBarFill.style.width = `${healthPercent}%`
+        }
+        document.getElementById('expValue').textContent = `${this.player.exp}/${this.player.expGoal}`
         document.getElementById('goldValue').textContent = this.player.gold
         document.getElementById('mobCount').textContent = this.mobs.length
         document.getElementById('killCount').textContent = this.kills
@@ -1350,6 +1760,63 @@ export class Game {
         }
     }
 
+    applyDamage(amount) {
+        if (this.player.hearts <= 0) return
+        let remaining = amount
+
+        if (this.player.shieldHp > 0) {
+            if (remaining <= this.player.shieldHp) {
+                this.player.shieldHp -= remaining
+                remaining = 0
+            } else {
+                remaining -= this.player.shieldHp
+                this.player.shieldHp = 0
+            }
+        }
+
+        while (remaining > 0 && this.player.hearts > 0) {
+            this.player.heartPoints -= remaining
+            if (this.player.heartPoints > 0) {
+                remaining = 0
+                break
+            }
+
+            remaining = Math.abs(this.player.heartPoints)
+            this.player.hearts -= 1
+
+            if (this.player.hearts <= 0) {
+                this.player.heartPoints = 0
+                this.gameOver()
+                return
+            }
+
+            this.player.heartPoints = this.player.maxHeartPoints
+        }
+
+        this.player.heartPoints = Math.max(0, this.player.heartPoints)
+    }
+
+    healPlayer(amount) {
+        if (this.player.hearts <= 0) return
+        let remaining = amount
+
+        while (remaining > 0 && this.player.hearts < 3) {
+            const amountToFill = this.player.maxHeartPoints - this.player.heartPoints
+            if (remaining <= amountToFill) {
+                this.player.heartPoints += remaining
+                remaining = 0
+                break
+            }
+            this.player.heartPoints = this.player.maxHeartPoints
+            remaining -= amountToFill
+            this.player.hearts += 1
+        }
+
+        if (remaining > 0) {
+            this.player.heartPoints = Math.min(this.player.maxHeartPoints, this.player.heartPoints + remaining)
+        }
+    }
+
     render() {
         this.renderer.clear()
         this.renderer.drawInfiniteBackground(this.camera)
@@ -1377,9 +1844,9 @@ export class Game {
         // Draw player
         this.renderer.drawPlayer(this.player, this.camera, true)
 
-        // Draw mega robot
-        if (this.player.megaRobot) {
-            this.renderer.drawMegaRobot(this.player.megaRobot, this.camera)
+        // Draw allies
+        if (this.allies) {
+            this.renderer.drawAllies(this.allies, this.camera)
         }
     }
 
@@ -1398,8 +1865,9 @@ export class Game {
     }
 
     gameOver() {
-        // Respawn player instead of ending game
-        this.player.health = this.player.maxHealth
+        alert('You failed and lost all hearts. Returning to home.')
+        this.player.hearts = 3
+        this.player.heartPoints = this.player.maxHeartPoints
         this.player.x = 1000 // Reset to center-ish spawn point
         this.player.y = 1000
         
@@ -1415,6 +1883,9 @@ export class Game {
         this.player.megaRobot = null
         this.player.megaRobotDuration = 0
         this.player.attackBoost = 1
+
+        this.hideAllOverlays()
+        this.showHomeScreen()
     }
 
     winGame() {

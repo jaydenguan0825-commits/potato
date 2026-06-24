@@ -94,9 +94,42 @@
     </div>
 
     <script>
-        document.getElementById('signupForm').addEventListener('submit', function (event) {
+        document.getElementById('signupForm').addEventListener('submit', async function (event) {
             event.preventDefault()
-            window.location.href = 'login.html'
+            const email = document.getElementById('email').value.trim()
+            const username = document.getElementById('username').value.trim()
+            const password = document.getElementById('password').value
+
+            try {
+                const res = await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, username, password })
+                })
+
+                // Safely parse JSON only when content-type is JSON
+                let data = null
+                const ct = res.headers.get('content-type') || ''
+                if (ct.includes('application/json')) {
+                    try { data = await res.json() } catch (e) { data = null }
+                } else {
+                    const text = await res.text().catch(() => '')
+                    data = text ? { message: text } : null
+                }
+
+                if (!res.ok) {
+                    const errMsg = data && (data.error || data.message) ? (data.error || data.message) : 'Signup failed'
+                    alert(errMsg)
+                    return
+                }
+
+                // Signup successful, redirect to login
+                if (data && data.userId) localStorage.setItem('potatoUserId', data.userId)
+                window.location.href = 'login.html'
+            } catch (err) {
+                console.error(err)
+                alert('Network error')
+            }
         })
     </script>
 </body>
